@@ -3,8 +3,9 @@
 -- Run this file once to set up the database
 -- ═══════════════════════════════════════════════════════════════
 
-CREATE DATABASE IF NOT EXISTS election_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE election_db;
+-- CREATE DATABASE IF NOT EXISTS election_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+-- USE election_db;
+
 
 -- ─── Settings ────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS settings (
