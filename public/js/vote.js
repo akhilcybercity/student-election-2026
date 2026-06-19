@@ -25,12 +25,11 @@ function updateStepDots(step) {
   });
 }
 
-let isTerminalMode = false;
+let isTerminalMode = true;
 let terminalPollInterval = null;
 
 async function initLookup() {
-  const urlParams = new URLSearchParams(window.location.search);
-  isTerminalMode = urlParams.get('mode') === 'terminal';
+  isTerminalMode = true;
 
   try {
     const settings = await API.Settings.get();
@@ -41,20 +40,16 @@ async function initLookup() {
     document.querySelectorAll('.election-name-text').forEach(el => el.textContent = settings.election_name || 'Student Council Elections');
     document.title = `Vote — ${settings.election_name || 'Elections'}`;
 
-    if (isTerminalMode) {
-      // Lock down: hide return home links
-      document.querySelectorAll('.back-btn').forEach(btn => btn.style.display = 'none');
-      startTerminalPolling();
-    } else {
-      const classes = await API.Classes.all();
-      const classSelect = document.getElementById('vote-class-select');
-      classSelect.innerHTML = '<option value="">— Select your class —</option>' + classes.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
-      showScreen('lookup');
-    }
+    // Always hide home/back buttons on the voting terminal for security
+    document.querySelectorAll('.back-btn').forEach(btn => btn.style.display = 'none');
+    
+    // Start waiting loop for admin activation
+    startTerminalPolling();
   } catch(e) {
     showErrorScreen('Connection Error', 'Cannot reach the server. Please check your internet connection and try again.');
   }
 }
+
 
 function startTerminalPolling() {
   showScreen('terminal-wait');
