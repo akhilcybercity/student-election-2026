@@ -25,23 +25,103 @@ function updateStepDots(step) {
   });
 }
 
+let isTerminalMode = false;
+let terminalPollInterval = null;
+
 async function initLookup() {
+  const urlParams = new URLSearchParams(window.location.search);
+  isTerminalMode = urlParams.get('mode') === 'terminal';
+
   try {
     const settings = await API.Settings.get();
     if (!settings.election_open) {
       showErrorScreen('Voting is Currently Closed','The election has not started yet or has been closed. Please check back later.');
       return;
     }
-    const classes = await API.Classes.all();
-    const classSelect = document.getElementById('vote-class-select');
-    classSelect.innerHTML = '<option value="">— Select your class —</option>' + classes.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
     document.querySelectorAll('.election-name-text').forEach(el => el.textContent = settings.election_name || 'Student Council Elections');
     document.title = `Vote — ${settings.election_name || 'Elections'}`;
-    showScreen('lookup');
+
+    if (isTerminalMode) {
+      // Lock down: hide return home links
+      document.querySelectorAll('.back-btn').forEach(btn => btn.style.display = 'none');
+      startTerminalPolling();
+    } else {
+      const classes = await API.Classes.all();
+      const classSelect = document.getElementById('vote-class-select');
+      classSelect.innerHTML = '<option value="">— Select your class —</option>' + classes.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+      showScreen('lookup');
+    }
   } catch(e) {
     showErrorScreen('Connection Error', 'Cannot reach the server. Please check your internet connection and try again.');
   }
 }
+
+function startTerminalPolling() {
+  showScreen('terminal-wait');
+  if (terminalPollInterval) clearInterval(terminalPollInterval);
+  terminalPollInterval = setInterval(async () => {
+    try {
+      const res = await API.Settings.getActiveVoter();
+      if (res && res.activeVoter) {
+        clearInterval(terminalPollInterval);
+        terminalPollInterval = null;
+        await loadActiveVoter(res.activeVoter);
+      }
+    } catch (e) {
+      console.error('Polling active voter failed:', e);
+    }
+  }, 2000);
+}
+
+async function loadActiveVoter(voter) {
+  try {
+    const student = await API.Students.get(voter.studentId);
+    if (student.has_voted) {
+      // Voter already voted, clear selection on server and resume polling
+      await API.Settings.clearActiveVoter();
+      startTerminalPolling();
+      return;
+    }
+    const classes = await API.Classes.all();
+    const cls = classes.find(c => c.id === voter.classId);
+
+    voteState.classId = voter.classId;
+    voteState.studentId = voter.studentId;
+    voteState.student = student;
+    voteState.cls = cls;
+    voteState.selections = {};
+
+    showToast(`Identity verified: Welcome, ${student.name}!`, 'success');
+    await buildBallot();
+    showScreen('ballot');
+  } catch (e) {
+    console.error('Error loading active voter details:', e);
+    startTerminalPolling();
+  }
+}
+
+function resetTerminal() {
+  // Clear any existing poll loop
+  if (terminalPollInterval) clearInterval(terminalPollInterval);
+  terminalPollInterval = null;
+
+  // Restore action buttons layout
+  const act = document.getElementById('success-actions');
+  if (act) act.style.display = 'flex';
+  const home = document.getElementById('success-home-btn');
+  if (home) home.style.display = 'flex';
+
+  // Reset local state
+  voteState = {
+    step: 'lookup',
+    classId: null, studentId: null, student: null, cls: null,
+    selections: {},
+  };
+
+  // Start polling again
+  startTerminalPolling();
+}
+
 
 async function onClassChange() {
   const classId = document.getElementById('vote-class-select').value;
@@ -205,13 +285,39 @@ async function submitVote() {
       if (c) selections.push({ candidate_id: cid, position_id: posId });
     }
     await API.Votes.cast({ voter_id: voteState.studentId, selections, class_id: voteState.classId });
-    setTimeout(() => showScreen('success'), 400);
+
+    if (isTerminalMode) {
+      try {
+        await API.Settings.clearActiveVoter();
+      } catch (err) {
+        console.error('Failed to clear active voter on server:', err);
+      }
+    }
+
+    setTimeout(() => {
+      if (isTerminalMode) {
+        // Customize success page for terminal mode
+        const successSub = document.querySelector('.success-sub');
+        if (successSub) {
+          successSub.innerHTML = `Your vote has been successfully recorded.<br><br><span style="color:var(--gold);font-weight:700">Returning to Waiting Screen in 5 seconds for the next voter...</span>`;
+        }
+        const act = document.getElementById('success-actions');
+        if (act) act.style.display = 'none';
+
+        // Auto reset after 5 seconds
+        setTimeout(() => {
+          resetTerminal();
+        }, 5000);
+      }
+      showScreen('success');
+    }, 400);
   } catch(e) {
     if (e.code === 'already_voted') showErrorScreen('Already Voted', e.message);
     else if (e.code === 'is_absent') showErrorScreen('Marked as Absent', e.message);
     else { btn.disabled=false; btn.textContent='✅ Submit My Vote'; showToast(e.message,'error'); }
   }
 }
+
 
 function showErrorScreen(title, msg) {
   document.getElementById('error-title-text').textContent = title;

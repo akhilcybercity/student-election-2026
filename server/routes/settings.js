@@ -3,6 +3,30 @@ const router = require('express').Router();
 const db     = require('../db');
 const { requireAdmin } = require('../middleware/auth');
 
+let activeVoter = null;
+
+// GET /api/settings/active-voter
+router.get('/active-voter', (req, res) => {
+  res.json({ activeVoter });
+});
+
+// POST /api/settings/active-voter (require admin to activate terminal)
+router.post('/active-voter', requireAdmin, (req, res) => {
+  const { studentId, classId, name } = req.body;
+  if (!studentId || !classId || !name) {
+    return res.status(400).json({ error: 'Missing studentId, classId, or name' });
+  }
+  activeVoter = { studentId, classId, name };
+  res.json({ success: true, activeVoter });
+});
+
+// DELETE /api/settings/active-voter (clears the active voter queue)
+router.delete('/active-voter', (req, res) => {
+  activeVoter = null;
+  res.json({ success: true });
+});
+
+
 // GET /api/settings — public (needed by vote page)
 router.get('/', async (req, res) => {
   try {

@@ -331,6 +331,9 @@ async function renderStudentTable() {
     tbody.innerHTML = students.map(s => {
       const statusBadge = s.is_absent ? '<span class="badge badge-red">Absent</span>' : s.has_voted ? '<span class="badge badge-green">Voted</span>' : '<span class="badge badge-gray">Pending</span>';
       const genderTag   = `<span class="gender-tag gender-${s.gender.toLowerCase()}">${s.gender==='Boy'?'♂':'♀'} ${s.gender}</span>`;
+      const activateBtn = s.is_absent || s.has_voted
+        ? ''
+        : `<button class="btn btn-gold btn-sm" onclick="activateVoter('${s.id}','${s.class_id}','${s.name.replace(/'/g,"\\'")}')" title="Activate Voting Booth">🗳️ Activate</button>`;
       return `<tr>
         <td><strong>${s.name}</strong>${s.roll_no?`<br><span class="text-xs text-muted">${s.roll_no}</span>`:''}</td>
         <td>${genderTag}</td>
@@ -338,6 +341,7 @@ async function renderStudentTable() {
         <td>${statusBadge}</td>
         <td>${s.voted_at ? new Date(s.voted_at).toLocaleTimeString() : '—'}</td>
         <td><div style="display:flex;gap:6px">
+          ${activateBtn}
           <button class="btn btn-ghost btn-sm" onclick="openEditStudent('${s.id}')">✏️</button>
           <button class="btn btn-danger btn-sm" onclick="confirmDeleteStudent('${s.id}','${s.name.replace(/'/g,"\\'")}')">🗑️</button>
         </div></td>
@@ -345,6 +349,16 @@ async function renderStudentTable() {
     }).join('');
   } catch(e) { showToast(e.message,'error'); }
 }
+
+async function activateVoter(studentId, classId, studentName) {
+  try {
+    await API.Settings.setActiveVoter({ studentId, classId, name: studentName });
+    showToast(`Voting terminal activated for "${studentName}"! 🗳️`, 'success');
+  } catch (e) {
+    showToast(e.message, 'error');
+  }
+}
+
 
 function openAddStudent() {
   document.getElementById('student-modal-title').textContent = 'Add New Student';

@@ -29,8 +29,23 @@
     <div class="step-dot"></div>
   </div>
 
+  <!-- ═══ SCREEN: TERMINAL WAIT (NEW) ══════════════════════════════ -->
+  <div id="screen-terminal-wait" class="vote-screen" style="display:none;width:100%;display:flex;flex-direction:column;align-items:center">
+    <div class="success-screen glass-strong" style="max-width:480px;text-align:center;padding:48px 32px">
+      <div class="success-icon" style="background:var(--gold-glow);border:2px solid var(--gold);border-radius:50%;width:80px;height:80px;display:flex;align-items:center;justify-content:center;font-size:2.2rem;margin:0 auto 20px;box-shadow:0 0 30px var(--gold-glow);animation:bounceIn 0.8s ease">🗳️</div>
+      <h1 class="success-title gradient-text" style="font-size:1.8rem;margin-bottom:12px">Voting Booth Locked</h1>
+      <p class="success-sub" style="font-size:0.95rem;line-height:1.6;margin-bottom:28px">
+        Please wait at the desk. The administrator will verify your identity and activate this voting screen.
+      </p>
+      <div class="alert alert-info" style="justify-content:center;font-size:0.875rem">
+        🔄 Waiting for admin authorization...
+      </div>
+    </div>
+  </div>
+
   <!-- ═══ SCREEN: LOOKUP ══════════════════════════════════════════ -->
   <div id="screen-lookup" class="vote-screen" style="display:none;width:100%;display:flex;flex-direction:column;align-items:center">
+
     <div class="step-header">
       <div class="step-icon">🏫</div>
       <h1 class="step-title gradient-text">Identify Yourself</h1>
@@ -143,8 +158,8 @@
         ✅ Your ballot has been securely recorded
       </div>
 
-      <div style="display:flex;flex-direction:column;gap:10px">
-        <a href="index.html" class="btn btn-primary btn-lg" style="justify-content:center">
+      <div style="display:flex;flex-direction:column;gap:10px" id="success-actions">
+        <a href="index.html" class="btn btn-primary btn-lg" id="success-home-btn" style="justify-content:center">
           ← Return to Home
         </a>
       </div>

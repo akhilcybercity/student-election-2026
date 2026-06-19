@@ -46,9 +46,13 @@ async function apiUpload(path, formData) {
 const API = {
   // Settings
   Settings: {
-    get:    ()      => apiFetch('/api/settings'),
-    update: (data)  => apiFetch('/api/settings', { method:'PUT', body: JSON.stringify(data) }),
+    get:              ()      => apiFetch('/api/settings'),
+    update:           (data)  => apiFetch('/api/settings', { method:'PUT', body: JSON.stringify(data) }),
+    getActiveVoter:   ()      => apiFetch('/api/settings/active-voter'),
+    setActiveVoter:   (data)  => apiFetch('/api/settings/active-voter', { method:'POST', body: JSON.stringify(data) }),
+    clearActiveVoter: ()      => apiFetch('/api/settings/active-voter', { method:'DELETE' }),
   },
+
 
   // Auth
   Auth: {
