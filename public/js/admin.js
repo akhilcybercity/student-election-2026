@@ -334,6 +334,11 @@ async function renderStudentTable() {
       const activateBtn = s.is_absent || s.has_voted
         ? ''
         : `<button class="btn btn-gold btn-sm" onclick="activateVoter('${s.id}','${s.class_id}','${s.name.replace(/'/g,"\\'")}')" title="Activate Voting Booth">🗳️ Activate</button>`;
+      const absentBtn = s.has_voted
+        ? ''
+        : s.is_absent
+          ? `<button class="btn btn-sm" style="background:#10b981;color:white;border:none" onclick="toggleAbsentFromTable('${s.id}', false)" title="Mark as Present">✅ Present</button>`
+          : `<button class="btn btn-sm" style="background:#f43f5e;color:white;border:none" onclick="toggleAbsentFromTable('${s.id}', true)" title="Mark as Absent">🚫 Absent</button>`;
       return `<tr>
         <td><strong>${s.name}</strong>${s.roll_no?`<br><span class="text-xs text-muted">${s.roll_no}</span>`:''}</td>
         <td>${genderTag}</td>
@@ -342,6 +347,7 @@ async function renderStudentTable() {
         <td>${s.voted_at ? new Date(s.voted_at).toLocaleTimeString() : '—'}</td>
         <td><div style="display:flex;gap:6px">
           ${activateBtn}
+          ${absentBtn}
           <button class="btn btn-ghost btn-sm" onclick="openEditStudent('${s.id}')">✏️</button>
           <button class="btn btn-danger btn-sm" onclick="confirmDeleteStudent('${s.id}','${s.name.replace(/'/g,"\\'")}')">🗑️</button>
         </div></td>
@@ -358,6 +364,17 @@ async function activateVoter(studentId, classId, studentName) {
     showToast(e.message, 'error');
   }
 }
+
+async function toggleAbsentFromTable(studentId, isAbsent) {
+  try {
+    await API.Students.markAbsent(studentId, isAbsent);
+    showToast(isAbsent ? 'Student marked as Absent 🚫' : 'Student marked as Present ✅', isAbsent ? 'warning' : 'success');
+    renderStudentTable();
+  } catch (e) {
+    showToast(e.message, 'error');
+  }
+}
+
 
 
 function openAddStudent() {
@@ -692,4 +709,23 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('student-search').addEventListener('input',          e => { studentSearch       = e.target.value; renderStudentTable(); });
   document.getElementById('topbar-date').textContent = new Date().toLocaleDateString('en-IN',{weekday:'short',year:'numeric',month:'short',day:'numeric'});
   checkAuth();
+
+  // Auto refresh active panel views every 5 seconds to keep the admin side in sync with live votes
+  setInterval(() => {
+    if (!Auth.isLoggedIn()) return;
+    if (currentPage === 'students') {
+      const modalActive = document.querySelector('#student-modal.active, #confirm-overlay.active');
+      if (!modalActive) {
+        renderStudentTable();
+      }
+    } else if (currentPage === 'dashboard') {
+      renderDashboard();
+    } else if (currentPage === 'results') {
+      const modalActive = document.querySelector('#confirm-overlay.active');
+      if (!modalActive) {
+        renderResults();
+      }
+    }
+  }, 5000);
 });
+
