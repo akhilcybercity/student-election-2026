@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Panel — Election Management System</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/admin.css" />
+</head>
+<body>
+<div class="bg-mesh"></div>
+<div id="toast-container"></div>
+
+<!-- Confirm Dialog -->
+<div id="confirm-overlay">
+  <div id="confirm-box">
+    <div style="font-size:2rem;margin-bottom:12px">⚠️</div>
+    <h3 id="confirm-title" style="font-size:1.2rem;margin-bottom:8px">Are you sure?</h3>
+    <p id="confirm-body" class="text-muted text-sm" style="margin-bottom:24px;line-height:1.5"></p>
+    <div style="display:flex;gap:10px;justify-content:center">
+      <button id="confirm-no"  class="btn btn-ghost">Cancel</button>
+      <button id="confirm-yes" class="btn btn-danger">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- LOGIN -->
+<div id="login-screen" style="display:flex">
+  <div class="login-card glass-strong">
+    <div class="login-logo">🔐</div>
+    <h1 class="login-title gradient-text">Admin Login</h1>
+    <p class="login-sub">Enter your password to access the Election Management Panel</p>
+    <div class="login-form">
+      <div class="form-group">
+        <label class="form-label" for="login-password">Admin Password</label>
+        <input type="password" id="login-password" class="form-input" placeholder="Enter password…" autocomplete="current-password" />
+      </div>
+      <div id="login-error" class="alert alert-error" style="display:none">❌ Incorrect password</div>
+      <button class="btn btn-gold btn-lg" onclick="doLogin()" style="width:100%;justify-content:center">🔓 Login to Admin Panel</button>
+    </div>
+    <div class="divider"></div>
+    <div class="text-center"><a href="index.html" class="btn btn-ghost btn-sm">← Back to Home</a></div>
+    <p class="text-center text-xs text-muted" style="margin-top:16px">Default password: <code style="background:var(--white-10);padding:2px 6px;border-radius:4px">admin123</code></p>
+  </div>
+</div>
+
+<!-- ADMIN PANEL -->
+<div id="admin-panel" class="admin-layout" style="display:none">
+  <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">🏛️</div>
+      <div class="sidebar-brand">Election Admin<span>Management Portal</span></div>
+    </div>
+    <div class="election-toggle-wrap">
+      <div class="election-toggle-label">Election Status</div>
+      <div class="toggle-row">
+        <span class="toggle-status-text" id="election-status-text">Closed</span>
+        <label class="toggle-switch" title="Toggle voting">
+          <input type="checkbox" id="election-toggle" />
+          <div class="toggle-track"></div>
+          <div class="toggle-thumb"></div>
+        </label>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section-title">Overview</div>
+      <button class="nav-item" data-page="dashboard" onclick="navigateTo('dashboard')"><span class="nav-icon">📊</span> Dashboard</button>
+
+      <div class="nav-section-title">Manage</div>
+      <button class="nav-item" data-page="classes"    onclick="navigateTo('classes')"><span class="nav-icon">🏫</span> Classes <span class="nav-badge">0</span></button>
+      <button class="nav-item" data-page="students"   onclick="navigateTo('students')"><span class="nav-icon">👥</span> Students <span class="nav-badge">0</span></button>
+      <button class="nav-item" data-page="positions"  onclick="navigateTo('positions')"><span class="nav-icon">🏅</span> Positions</button>
+      <button class="nav-item" data-page="candidates" onclick="navigateTo('candidates')"><span class="nav-icon">🎯</span> Candidates</button>
+      <button class="nav-item" data-page="absent"     onclick="navigateTo('absent')"><span class="nav-icon">🚫</span> Mark Absent</button>
+
+      <div class="nav-section-title">Reports</div>
+      <button class="nav-item" data-page="results"   onclick="navigateTo('results')"><span class="nav-icon">🏆</span> Results</button>
+
+      <div class="nav-section-title">System</div>
+      <button class="nav-item" data-page="settings"  onclick="navigateTo('settings')"><span class="nav-icon">⚙️</span> Settings</button>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="logout-btn" onclick="doLogout()">🚪 Logout</button>
+      <div style="margin-top:10px;text-align:center"><a href="index.html" style="color:var(--white-70);font-size:.8rem;text-decoration:none">← Back to Home</a></div>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <header class="topbar">
+      <div style="display:flex;align-items:center;gap:12px">
+        <button class="hamburger" onclick="toggleSidebar()">☰</button>
+        <h2 class="topbar-title" id="topbar-title">Dashboard</h2>
+      </div>
+      <div class="topbar-right">
+        <span class="text-sm text-muted" id="topbar-date"></span>
+        <div class="admin-avatar">A</div>
+      </div>
+    </header>
+
+    <!-- DASHBOARD -->
+    <div id="page-dashboard" class="page-content page-section" style="display:none">
+      <div id="dash-election-status" style="margin-bottom:20px"></div>
+      <div class="stats-grid" style="margin-bottom:28px">
+        <div class="stat-card"><div class="stat-value text-indigo" id="dash-total-classes">0</div><div class="stat-label">Total Classes</div></div>
+        <div class="stat-card"><div class="stat-value" id="dash-total-students">0</div><div class="stat-label">Students</div></div>
+        <div class="stat-card"><div class="stat-value text-gold" id="dash-total-voted">0</div><div class="stat-label">Votes Cast</div></div>
+        <div class="stat-card"><div class="stat-value" style="color:#34d399" id="dash-total-pending">0</div><div class="stat-label">Pending</div></div>
+        <div class="stat-card"><div class="stat-value" style="color:#fb7185" id="dash-total-absent">0</div><div class="stat-label">Absent</div></div>
+        <div class="stat-card"><div class="stat-value text-indigo" id="dash-total-votes">0</div><div class="stat-label">Vote Records</div></div>
+      </div>
+      <div class="glass" style="padding:24px;margin-bottom:28px;border-radius:var(--radius-lg)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div class="font-semi">Overall Voter Turnout</div>
+          <div style="font-size:1.5rem;font-weight:800;color:var(--gold)" id="dash-turnout-pct">0%</div>
+        </div>
+        <div class="progress-bar-wrap" style="height:12px"><div class="progress-bar-fill" id="dash-turnout-bar" style="width:0%;background:linear-gradient(90deg,var(--gold),var(--gold-light))"></div></div>
+      </div>
+      <div class="glass" style="padding:24px;border-radius:var(--radius-lg)">
+        <div class="section-header">
+          <div class="section-title">Class-wise Progress</div>
+          <button class="btn btn-ghost btn-sm" onclick="navigateTo('results')">View Full Results →</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Class</th><th>Total</th><th>Voted</th><th>Absent</th><th>Turnout</th></tr></thead>
+            <tbody id="dash-class-progress"><tr><td colspan="5" class="text-center text-muted" style="padding:20px">No data yet</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- CLASSES -->
+    <div id="page-classes" class="page-content page-section" style="display:none">
+      <div class="section-header">
+        <div class="section-title">All Classes</div>
+        <button class="btn btn-primary" onclick="openAddClass()">+ Add Class</button>
+      </div>
+      <div id="classes-grid" class="cards-grid"></div>
+    </div>
+
+    <!-- STUDENTS -->
+    <div id="page-students" class="page-content page-section" style="display:none">
+      <div class="section-header">
+        <div class="section-title">All Students</div>
+        <div style="display:flex;gap:10px">
+          <button class="btn btn-ghost" onclick="document.getElementById('import-section').classList.toggle('hidden-import')">📊 Import Excel</button>
+          <button class="btn btn-primary" onclick="openAddStudent()">+ Add Student</button>
+        </div>
+      </div>
+
+      <!-- Excel Import Section -->
+      <div id="import-section" class="glass hidden-import" style="padding:20px;border-radius:var(--radius-lg);margin-bottom:16px">
+        <div class="section-title" style="font-size:1rem;margin-bottom:12px">📊 Bulk Import from Excel</div>
+        <div class="alert alert-info" style="margin-bottom:12px">
+          ℹ️ Upload an <strong>.xlsx</strong> file with columns: <code>Name</code>, <code>Roll No</code> (optional), <code>Gender</code> (Boy/Girl), <code>Class Name</code> (must match existing class exactly)
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <input type="file" id="excel-file" accept=".xlsx,.xls" class="form-input" style="width:auto;flex:1" />
+          <button id="import-btn" class="btn btn-gold" onclick="importExcel()">📥 Import Students</button>
+          <a href="/template.xlsx" download class="btn btn-ghost btn-sm">⬇️ Download Template</a>
+        </div>
+        <div id="import-result" style="margin-top:12px"></div>
+      </div>
+
+      <div class="student-filters glass" style="padding:14px 16px;border-radius:var(--radius-md);margin-bottom:16px">
+        <input type="text" id="student-search" class="form-input search-input" placeholder="🔍 Search by name or roll no…" />
+        <select id="student-filter-class"  class="form-select" style="width:auto"><option value="">All Classes</option></select>
+        <select id="student-filter-gender" class="form-select" style="width:auto">
+          <option value="">All Genders</option>
+          <option value="Boy">Boys</option>
+          <option value="Girl">Girls</option>
+        </select>
+      </div>
+      <div class="glass" style="border-radius:var(--radius-lg);overflow:hidden">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Name / Roll No.</th><th>Gender</th><th>Class</th><th>Status</th><th>Voted At</th><th>Actions</th></tr></thead>
+            <tbody id="students-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- POSITIONS (NEW) -->
+    <div id="page-positions" class="page-content page-section" style="display:none">
+      <div class="section-header">
+        <div class="section-title">Election Positions</div>
+        <button class="btn btn-primary" onclick="openAddPosition()">+ Add Position</button>
+      </div>
+      <div class="alert alert-info" style="margin-bottom:20px">
+        ℹ️ Create the positions students will vote for. Set the gender restriction for each position — candidates will be filtered accordingly.
+      </div>
+      <div id="positions-list"></div>
+    </div>
+
+    <!-- CANDIDATES -->
+    <div id="page-candidates" class="page-content page-section" style="display:none">
+      <div class="section-header"><div class="section-title">Manage Candidates</div></div>
+      <div class="alert alert-info" style="margin-bottom:20px">
+        ℹ️ Select a class to assign candidates. Only students matching the position's gender restriction will appear.
+      </div>
+      <div class="glass" style="padding:24px;border-radius:var(--radius-lg)">
+        <div class="form-group" style="max-width:320px;margin-bottom:24px">
+          <label class="form-label">Select Class</label>
+          <select class="form-select" id="cand-class-select" onchange="loadCandidatePosts()">
+            <option value="">— Choose a class —</option>
+          </select>
+        </div>
+        <div id="cand-posts-section" style="display:none">
+          <div id="cand-posts-wrap"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ABSENT -->
+    <div id="page-absent" class="page-content page-section" style="display:none">
+      <div class="section-header"><div class="section-title">Mark Absent / Present</div></div>
+      <div class="alert alert-warning" style="margin-bottom:20px">⚠️ Absent students cannot cast votes. Students who have already voted cannot be marked absent.</div>
+      <div class="glass" style="padding:24px;border-radius:var(--radius-lg)">
+        <div class="form-group" style="max-width:320px;margin-bottom:24px">
+          <label class="form-label">Select Class</label>
+          <select class="form-select" id="absent-class-select" onchange="loadAbsentList()">
+            <option value="">— Choose a class —</option>
+          </select>
+        </div>
+        <div id="absent-list"></div>
+      </div>
+    </div>
+
+    <!-- RESULTS -->
+    <div id="page-results" class="page-content page-section" style="display:none">
+      <div class="section-header">
+        <div class="section-title">Election Results</div>
+        <div class="section-actions">
+          <select class="form-select" id="result-filter-class" onchange="renderResults()" style="width:auto"><option value="">All Classes</option></select>
+          <button class="btn btn-primary" onclick="renderResults()">🔄 Refresh</button>
+          <button class="btn btn-gold" onclick="exportResults()">📥 Export</button>
+        </div>
+      </div>
+      <div id="results-container"></div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div id="page-settings" class="page-content page-section" style="display:none">
+      <div class="section-title" style="margin-bottom:24px">Settings</div>
+      <div class="settings-card glass">
+        <div class="settings-card-title">🎓 General Settings</div>
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div class="form-group"><label class="form-label" for="set-election-name">Election Name</label><input type="text" id="set-election-name" class="form-input" placeholder="Student Council Elections 2026" /></div>
+          <div class="form-group"><label class="form-label" for="set-college-name">College Name</label><input type="text" id="set-college-name" class="form-input" placeholder="Your College Name" /></div>
+          <button class="btn btn-primary" onclick="saveGeneralSettings()" style="align-self:flex-start">Save Settings</button>
+        </div>
+      </div>
+      <div class="settings-card glass" style="margin-top:20px">
+        <div class="settings-card-title">🔐 Change Admin Password</div>
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div class="form-group"><label class="form-label">Current Password</label><input type="password" id="set-curr-pass" class="form-input" /></div>
+          <div class="form-group"><label class="form-label">New Password</label><input type="password" id="set-new-pass" class="form-input" placeholder="Min 4 characters" /></div>
+          <div class="form-group"><label class="form-label">Confirm New Password</label><input type="password" id="set-conf-pass" class="form-input" /></div>
+          <button class="btn btn-primary" onclick="savePasswordSettings()" style="align-self:flex-start">Update Password</button>
+        </div>
+      </div>
+      <div class="settings-card" style="margin-top:20px;border:1px solid rgba(244,63,94,0.3);background:rgba(244,63,94,0.05)">
+        <div class="settings-card-title" style="color:#fb7185">⚠️ Danger Zone</div>
+        <p class="text-sm text-muted" style="margin-bottom:16px">These actions cannot be undone.</p>
+        <button class="btn btn-danger" onclick="resetAllVotes()">🔄 Reset All Votes</button>
+      </div>
+    </div>
+
+  </div><!-- /main-content -->
+</div><!-- /admin-panel -->
+
+<!-- CLASS MODAL -->
+<div class="modal-overlay" id="class-modal">
+  <div class="modal">
+    <div class="modal-header"><h3 class="modal-title" id="class-modal-title">Add Class</h3><button class="modal-close" onclick="closeClassModal()">✕</button></div>
+    <input type="hidden" id="class-id-field" />
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div class="form-group"><label class="form-label">Class Name <span class="text-muted">(e.g. CSE-A 1st Year)</span></label><input type="text" id="class-name" class="form-input" placeholder="CSE-A 1st Year" /></div>
+      <div class="form-group"><label class="form-label">Course / Department</label><input type="text" id="class-course" class="form-input" placeholder="B.Tech CSE" /></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group"><label class="form-label">Year</label>
+          <select id="class-year" class="form-select"><option value="1">1st Year</option><option value="2">2nd Year</option><option value="3">3rd Year</option><option value="4">4th Year</option></select>
+        </div>
+        <div class="form-group"><label class="form-label">Section</label><input type="text" id="class-section" class="form-input" placeholder="A" maxlength="3" /></div>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button class="btn btn-ghost" onclick="closeClassModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveClass()">💾 Save Class</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- STUDENT MODAL -->
+<div class="modal-overlay" id="student-modal">
+  <div class="modal">
+    <div class="modal-header"><h3 class="modal-title" id="student-modal-title">Add Student</h3><button class="modal-close" onclick="closeStudentModal()">✕</button></div>
+    <input type="hidden" id="student-id-field" />
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div class="form-group"><label class="form-label">Full Name</label><input type="text" id="student-name" class="form-input" placeholder="Student Full Name" /></div>
+      <div class="form-group"><label class="form-label">Roll Number <span class="text-muted">(optional)</span></label><input type="text" id="student-roll" class="form-input" placeholder="e.g. 22CS001" /></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group"><label class="form-label">Gender</label>
+          <select id="student-gender" class="form-select"><option value="Boy">Boy</option><option value="Girl">Girl</option></select>
+        </div>
+        <div class="form-group"><label class="form-label">Class</label>
+          <select id="student-class-select" class="form-select"><option value="">— Select —</option></select>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button class="btn btn-ghost" onclick="closeStudentModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveStudent()">💾 Save Student</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- POSITION MODAL -->
+<div class="modal-overlay" id="pos-modal">
+  <div class="modal">
+    <div class="modal-header"><h3 class="modal-title" id="pos-modal-title">Add Position</h3><button class="modal-close" onclick="closePosModal()">✕</button></div>
+    <input type="hidden" id="pos-id-field" />
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div class="form-group"><label class="form-label">Position Name</label><input type="text" id="pos-label" class="form-input" placeholder="e.g. Class Representative" /></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+        <div class="form-group"><label class="form-label">Gender</label>
+          <select id="pos-gender" class="form-select"><option value="Boy">Boy</option><option value="Girl">Girl</option><option value="Any">Any</option></select>
+        </div>
+        <div class="form-group"><label class="form-label">Icon (emoji)</label><input type="text" id="pos-icon" class="form-input" placeholder="🏅" maxlength="5" /></div>
+        <div class="form-group"><label class="form-label">Order</label><input type="number" id="pos-order" class="form-input" value="0" min="0" /></div>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button class="btn btn-ghost" onclick="closePosModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="savePosition()">💾 Save Position</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.hidden-import { display:none !important; }
+.settings-card { padding:24px; border-radius:var(--radius-lg); }
+</style>
+
+<script src="js/api.js"></script>
+<script src="js/admin.js"></script>
+</body>
+</html>

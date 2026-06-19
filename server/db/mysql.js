@@ -1,0 +1,465 @@
+// mysql.js — MySQL Connection and Provider
+const mysql = require('mysql2/promise');
+const { v4: uuidv4 } = require('uuid');
+
+let pool = null;
+
+function getPool() {
+  if (!pool) {
+    pool = mysql.createPool({
+      host:     process.env.DB_HOST     || 'localhost',
+      port:     parseInt(process.env.DB_PORT || '3306'),
+      user:     process.env.DB_USER     || 'root',
+      password: process.env.DB_PASSWORD || '',
+      database: process.env.DB_NAME     || 'election_db',
+      waitForConnections: true,
+      connectionLimit:    10,
+      queueLimit:         0,
+      timezone: '+00:00',
+    });
+  }
+  return pool;
+}
+
+const mysqlDb = {
+  settings: {
+    get: async (key) => {
+      const p = getPool();
+      const [[row]] = await p.query("SELECT `value` FROM settings WHERE `key` = ?", [key]);
+      return row ? row.value : null;
+    },
+    getAll: async () => {
+      const p = getPool();
+      const [rows] = await p.query("SELECT `key`, `value` FROM settings WHERE `key` != 'admin_password'");
+      const res = {};
+      rows.forEach(s => {
+        res[s.key] = s.value === 'true' ? true : s.value === 'false' ? false : s.value;
+      });
+      return res;
+    },
+    update: async (settingsObj) => {
+      const p = getPool();
+      for (const [key, val] of Object.entries(settingsObj)) {
+        const strVal = String(val);
+        await p.query(
+          "INSERT INTO settings (`key`, `value`) VALUES (?,?) ON DUPLICATE KEY UPDATE `value`=?",
+          [key, strVal, strVal]
+        );
+      }
+      return true;
+    }
+  },
+
+  classes: {
+    all: async () => {
+      const p = getPool();
+      const [rows] = await p.query("SELECT * FROM classes ORDER BY year, name");
+      return rows;
+    },
+    get: async (id) => {
+      const p = getPool();
+      const [[row]] = await p.query("SELECT * FROM classes WHERE id=?", [id]);
+      return row || null;
+    },
+    add: async (cls) => {
+      const p = getPool();
+      const newClass = {
+        id: uuidv4(),
+        name: cls.name.trim(),
+        course: cls.course.trim(),
+        year: parseInt(cls.year) || 1,
+        section: cls.section.trim(),
+      };
+      await p.query(
+        "INSERT INTO classes (id,name,course,year,section) VALUES (?,?,?,?,?)",
+        [newClass.id, newClass.name, newClass.course, newClass.year, newClass.section]
+      );
+      return newClass;
+    },
+    update: async (id, cls) => {
+      const p = getPool();
+      await p.query(
+        "UPDATE classes SET name=?,course=?,year=?,section=? WHERE id=?",
+        [cls.name.trim(), cls.course.trim(), parseInt(cls.year) || 1, cls.section.trim(), id]
+      );
+      return { id, ...cls };
+    },
+    delete: async (id) => {
+      const p = getPool();
+      await p.query("DELETE FROM votes WHERE class_id=?", [id]);
+      await p.query("DELETE FROM candidates WHERE class_id=?", [id]);
+      await p.query("DELETE FROM students WHERE class_id=?", [id]);
+      await p.query("DELETE FROM classes WHERE id=?", [id]);
+      return true;
+    },
+    stats: async (id) => {
+      const p = getPool();
+      const [[{ total }]]  = await p.query("SELECT COUNT(*) AS total  FROM students WHERE class_id=? AND is_absent=0", [id]);
+      const [[{ voted }]]  = await p.query("SELECT COUNT(*) AS voted  FROM students WHERE class_id=? AND has_voted=1", [id]);
+      const [[{ absent }]] = await p.query("SELECT COUNT(*) AS absent FROM students WHERE class_id=? AND is_absent=1", [id]);
+      return { total, voted, absent, pending: total - voted };
+    }
+  },
+
+  positions: {
+    all: async () => {
+      const p = getPool();
+      const [rows] = await p.query("SELECT * FROM positions ORDER BY sort_order, created_at");
+      return rows;
+    },
+    get: async (id) => {
+      const p = getPool();
+      const [[row]] = await p.query("SELECT * FROM positions WHERE id=?", [id]);
+      return row || null;
+    },
+    add: async (pos) => {
+      const p = getPool();
+      const newPos = {
+        id: uuidv4(),
+        label: pos.label.trim(),
+        gender: pos.gender || 'Any',
+        icon: pos.icon || '🏅',
+        sort_order: parseInt(pos.sort_order) || 0,
+      };
+      await p.query(
+        "INSERT INTO positions (id,label,gender,icon,sort_order) VALUES (?,?,?,?,?)",
+        [newPos.id, newPos.label, newPos.gender, newPos.icon, newPos.sort_order]
+      );
+      return newPos;
+    },
+    update: async (id, pos) => {
+      const p = getPool();
+      await p.query(
+        "UPDATE positions SET label=?,gender=?,icon=?,sort_order=? WHERE id=?",
+        [pos.label.trim(), pos.gender || 'Any', pos.icon || '🏅', parseInt(pos.sort_order) || 0, id]
+      );
+      return { id, ...pos };
+    },
+    delete: async (id) => {
+      const p = getPool();
+      await p.query("DELETE FROM candidates WHERE position_id=?", [id]);
+      await p.query("DELETE FROM positions WHERE id=?", [id]);
+      return true;
+    }
+  },
+
+  students: {
+    all: async (filters = {}) => {
+      const p = getPool();
+      let sql = `
+        SELECT s.*, c.name AS class_name
+        FROM students s
+        LEFT JOIN classes c ON s.class_id = c.id
+        WHERE 1=1`;
+      const params = [];
+      if (filters.classId) {
+        sql += ' AND s.class_id = ?';
+        params.push(filters.classId);
+      }
+      if (filters.gender) {
+        sql += ' AND s.gender = ?';
+        params.push(filters.gender);
+      }
+      if (filters.search) {
+        sql += ' AND (s.name LIKE ? OR s.roll_no LIKE ?)';
+        params.push(`%${filters.search}%`, `%${filters.search}%`);
+      }
+      sql += ' ORDER BY s.name';
+      const [rows] = await p.query(sql, params);
+      return rows;
+    },
+    get: async (id) => {
+      const p = getPool();
+      const [[row]] = await p.query("SELECT * FROM students WHERE id=?", [id]);
+      return row || null;
+    },
+    add: async (stud) => {
+      const p = getPool();
+      const newStudent = {
+        id: uuidv4(),
+        name: stud.name.trim(),
+        roll_no: (stud.roll_no || '').trim(),
+        gender: stud.gender,
+        class_id: stud.class_id,
+      };
+      await p.query(
+        "INSERT INTO students (id,name,roll_no,gender,class_id) VALUES (?,?,?,?,?)",
+        [newStudent.id, newStudent.name, newStudent.roll_no, newStudent.gender, newStudent.class_id]
+      );
+      return { ...newStudent, has_voted: false, is_absent: false, voted_at: null };
+    },
+    update: async (id, stud) => {
+      const p = getPool();
+      await p.query(
+        "UPDATE students SET name=?,roll_no=?,gender=?,class_id=? WHERE id=?",
+        [stud.name.trim(), (stud.roll_no || '').trim(), stud.gender, stud.class_id, id]
+      );
+      return { id, ...stud };
+    },
+    delete: async (id) => {
+      const p = getPool();
+      await p.query("DELETE FROM votes WHERE voter_id=?", [id]);
+      await p.query("DELETE FROM candidates WHERE student_id=?", [id]);
+      await p.query("DELETE FROM students WHERE id=?", [id]);
+      return true;
+    },
+    markAbsent: async (id, isAbsent) => {
+      const p = getPool();
+      const [[s]] = await p.query("SELECT has_voted FROM students WHERE id=?", [id]);
+      if (s && s.has_voted && isAbsent) {
+        throw new Error('Cannot mark a voted student as absent');
+      }
+      await p.query("UPDATE students SET is_absent=? WHERE id=?", [isAbsent ? 1 : 0, id]);
+      return true;
+    },
+    import: async (studentsList) => {
+      const p = getPool();
+      const [classes] = await p.query("SELECT id, name FROM classes");
+      const classMap = {};
+      classes.forEach(c => {
+        classMap[c.name.trim().toLowerCase()] = c.id;
+      });
+
+      const results = { imported: 0, skipped: 0, errors: [] };
+      const [allStudents] = await p.query("SELECT roll_no FROM students WHERE roll_no != ''");
+      const existingRolls = new Set(allStudents.map(s => s.roll_no.toLowerCase()));
+
+      const batch = [];
+      for (let i = 0; i < studentsList.length; i++) {
+        const row = studentsList[i];
+        const rowNum = i + 2;
+        const name = (row.name || row.Name || '').trim();
+        const rollNo = (row.roll_no || row.RollNo || row.rollNo || row['Roll No'] || '').toString().trim();
+        const genderRaw = (row.gender || row.Gender || '').trim();
+        const className = (row.class_name || row.className || row['Class Name'] || '').trim();
+
+        let gender = '';
+        if (['boy', 'male', 'm', 'b'].includes(genderRaw.toLowerCase())) gender = 'Boy';
+        else if (['girl', 'female', 'f', 'g'].includes(genderRaw.toLowerCase())) gender = 'Girl';
+
+        if (!name) {
+          results.errors.push({ row: rowNum, error: 'Missing Name' });
+          results.skipped++;
+          continue;
+        }
+        if (!gender) {
+          results.errors.push({ row: rowNum, name, error: `Invalid gender "${genderRaw}"` });
+          results.skipped++;
+          continue;
+        }
+        if (!className) {
+          results.errors.push({ row: rowNum, name, error: 'Missing Class Name' });
+          results.skipped++;
+          continue;
+        }
+
+        const classId = classMap[className.toLowerCase()];
+        if (!classId) {
+          results.errors.push({ row: rowNum, name, error: `Class "${className}" not found` });
+          results.skipped++;
+          continue;
+        }
+
+        if (rollNo && existingRolls.has(rollNo.toLowerCase())) {
+          results.errors.push({ row: rowNum, name, error: `Roll No "${rollNo}" already exists` });
+          results.skipped++;
+          continue;
+        }
+
+        batch.push([uuidv4(), name, rollNo, gender, classId]);
+        if (rollNo) existingRolls.add(rollNo.toLowerCase());
+        results.imported++;
+      }
+
+      if (batch.length > 0) {
+        await p.query(
+          "INSERT IGNORE INTO students (id,name,roll_no,gender,class_id) VALUES ?",
+          [batch]
+        );
+      }
+
+      return results;
+    },
+    globalStats: async () => {
+      const p = getPool();
+      const [[r]] = await p.query(`
+        SELECT
+          COUNT(*) AS total_students,
+          SUM(has_voted)  AS total_voted,
+          SUM(is_absent)  AS total_absent,
+          SUM(CASE WHEN has_voted=0 AND is_absent=0 THEN 1 ELSE 0 END) AS total_pending
+        FROM students`);
+      const [[{ total_classes }]] = await p.query('SELECT COUNT(*) AS total_classes FROM classes');
+      const [[{ total_votes   }]] = await p.query('SELECT COUNT(*) AS total_votes   FROM votes');
+      return { ...r, total_classes, total_votes };
+    }
+  },
+
+  candidates: {
+    byClass: async (classId) => {
+      const p = getPool();
+      const [rows] = await p.query(`
+        SELECT c.id, c.student_id, c.class_id, c.position_id,
+               s.name AS student_name, s.gender AS student_gender, s.roll_no,
+               p.label AS position_label, p.gender AS position_gender, p.icon
+        FROM candidates c
+        JOIN students  s ON c.student_id  = s.id
+        JOIN positions p ON c.position_id = p.id
+        WHERE c.class_id = ?
+        ORDER BY p.sort_order, s.name`, [classId]);
+      return rows;
+    },
+    add: async (cand) => {
+      const p = getPool();
+      const [[student]]  = await p.query('SELECT * FROM students  WHERE id=?', [cand.student_id]);
+      const [[position]] = await p.query('SELECT * FROM positions WHERE id=?', [cand.position_id]);
+      if (!student)  throw new Error('Student not found');
+      if (!position) throw new Error('Position not found');
+
+      if (position.gender !== 'Any' && student.gender !== position.gender) {
+        throw new Error(`This position is for ${position.gender} students only. "${student.name}" is ${student.gender}.`);
+      }
+
+      const id = uuidv4();
+      await p.query(
+        'INSERT INTO candidates (id,student_id,class_id,position_id) VALUES (?,?,?,?)',
+        [id, cand.student_id, cand.class_id, cand.position_id]
+      );
+
+      return {
+        id,
+        student_id: cand.student_id,
+        class_id: cand.class_id,
+        position_id: cand.position_id,
+        student_name: student.name,
+        student_gender: student.gender,
+        position_label: position.label,
+        position_gender: position.gender,
+        icon: position.icon
+      };
+    },
+    delete: async (id) => {
+      const p = getPool();
+      const [[{ count }]] = await p.query('SELECT COUNT(*) AS count FROM votes WHERE candidate_id=?', [id]);
+      if (count > 0) throw new Error('Cannot remove candidate with existing votes');
+      await p.query('DELETE FROM candidates WHERE id=?', [id]);
+      return true;
+    }
+  },
+
+  votes: {
+    cast: async (vote) => {
+      const p = getPool();
+      const [[voter]] = await p.query('SELECT * FROM students WHERE id=?', [vote.voter_id]);
+      if (!voter) throw new Error('Voter not found');
+      if (voter.has_voted) {
+        const err = new Error('You have already voted');
+        err.code = 'already_voted';
+        throw err;
+      }
+      if (voter.is_absent) {
+        const err = new Error('You are marked as absent');
+        err.code = 'is_absent';
+        throw err;
+      }
+
+      const conn = await p.getConnection();
+      try {
+        await conn.beginTransaction();
+
+        for (const sel of vote.selections) {
+          await conn.query(
+            'INSERT INTO votes (id,voter_id,candidate_id,position_id,class_id) VALUES (?,?,?,?,?)',
+            [uuidv4(), vote.voter_id, sel.candidate_id, sel.position_id, vote.class_id]
+          );
+        }
+
+        await conn.query(
+          'UPDATE students SET has_voted=1, voted_at=NOW() WHERE id=?',
+          [vote.voter_id]
+        );
+
+        await conn.commit();
+        return true;
+      } catch (e) {
+        await conn.rollback();
+        throw e;
+      } finally {
+        conn.release();
+      }
+    },
+    results: async (classId) => {
+      const p = getPool();
+      let sql = 'SELECT * FROM classes';
+      const params = [];
+      if (classId) {
+        sql += ' WHERE id=?';
+        params.push(classId);
+      }
+      sql += ' ORDER BY year, name';
+      const [classes] = await p.query(sql, params);
+      const results = [];
+
+      for (const cls of classes) {
+        const [[stats]] = await p.query(`
+          SELECT
+            COUNT(CASE WHEN is_absent=0 THEN 1 END) AS total,
+            SUM(has_voted) AS voted,
+            SUM(is_absent) AS absent,
+            COUNT(CASE WHEN has_voted=0 AND is_absent=0 THEN 1 END) AS pending
+          FROM students WHERE class_id=?`, [cls.id]);
+
+        const [positions] = await p.query('SELECT * FROM positions ORDER BY sort_order');
+        const posList = [];
+
+        for (const pos of positions) {
+          const [cands] = await p.query(`
+            SELECT c.id, s.name, COUNT(v.id) AS votes
+            FROM candidates c
+            JOIN students s ON c.student_id = s.id
+            LEFT JOIN votes v ON v.candidate_id = c.id
+            WHERE c.class_id=? AND c.position_id=?
+            GROUP BY c.id, s.name
+            ORDER BY votes DESC`, [cls.id, pos.id]);
+
+          posList.push({
+            id: pos.id,
+            label: pos.label,
+            gender: pos.gender,
+            icon: pos.icon,
+            candidates: cands
+          });
+        }
+
+        results.push({
+          class: cls,
+          stats: stats || { total: 0, voted: 0, absent: 0, pending: 0 },
+          positions: posList
+        });
+      }
+
+      return results;
+    },
+    stats: async () => {
+      const p = getPool();
+      const [[r]] = await p.query(`
+        SELECT
+          COUNT(*) AS total_students,
+          SUM(has_voted)  AS total_voted,
+          SUM(is_absent)  AS total_absent,
+          SUM(CASE WHEN has_voted=0 AND is_absent=0 THEN 1 ELSE 0 END) AS total_pending
+        FROM students`);
+      const [[{ total_classes }]] = await p.query('SELECT COUNT(*) AS total_classes FROM classes');
+      const [[{ total_votes   }]] = await p.query('SELECT COUNT(*) AS total_votes   FROM votes');
+      return { ...r, total_classes, total_votes };
+    },
+    reset: async () => {
+      const p = getPool();
+      await p.query('DELETE FROM votes');
+      await p.query('UPDATE students SET has_voted=0, voted_at=NULL');
+      return true;
+    }
+  }
+};
+
+module.exports = mysqlDb;

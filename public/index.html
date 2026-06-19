@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Student Council Elections — Home</title>
+  <meta name="description" content="Official Student Council Election Portal. Cast your vote for Class, Sports, and Cultural Representatives." />
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    .hero { min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:40px 24px; position:relative; z-index:1; }
+    .hero-emblem { width:100px;height:100px; background:linear-gradient(135deg,var(--navy-3),var(--indigo)); border:2px solid var(--gold); border-radius:50%; display:flex;align-items:center;justify-content:center; font-size:2.8rem; margin:0 auto 28px; box-shadow:0 0 40px var(--indigo-glow),0 0 80px var(--gold-glow); animation:float 4s ease-in-out infinite; }
+    @keyframes float { 0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)} }
+    .hero-subtitle { font-size:.875rem;text-transform:uppercase;letter-spacing:.2em;color:var(--gold);font-weight:700;margin-bottom:16px; }
+    .hero-title { font-size:clamp(2.2rem,6vw,4rem);line-height:1.15;margin-bottom:16px; }
+    .hero-college { font-size:1rem;color:var(--white-70);font-weight:500;margin-bottom:36px; }
+    .status-pill { display:inline-flex;align-items:center;gap:8px;padding:8px 20px;border-radius:100px;font-size:.875rem;font-weight:600;margin-bottom:48px; }
+    .status-open   { background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.4);color:#34d399; }
+    .status-closed { background:rgba(244,63,94,.15); border:1px solid rgba(244,63,94,.4); color:#fb7185; }
+    .status-dot { width:8px;height:8px;border-radius:50%;animation:pulse 1.8s infinite; }
+    .status-open .status-dot  { background:#34d399; }
+    .status-closed .status-dot{ background:#fb7185;animation:none; }
+    .entry-cards { display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:24px;width:100%;max-width:700px;margin-bottom:48px; }
+    .entry-card { padding:36px 28px;border-radius:var(--radius-xl);border:1px solid var(--glass-border);background:var(--glass-bg);backdrop-filter:blur(20px);cursor:pointer;transition:var(--transition);text-decoration:none;color:var(--white);display:flex;flex-direction:column;align-items:center;gap:14px;position:relative;overflow:hidden; }
+    .entry-card::before { content:'';position:absolute;inset:0;border-radius:inherit;opacity:0;transition:var(--transition); }
+    .entry-card-vote::before  { background:linear-gradient(135deg,rgba(79,70,229,.2),rgba(99,102,241,.1)); }
+    .entry-card-admin::before { background:linear-gradient(135deg,rgba(245,158,11,.15),rgba(251,191,36,.08)); }
+    .entry-card:hover::before { opacity:1; }
+    .entry-card:hover { transform:translateY(-6px);box-shadow:0 20px 50px rgba(0,0,0,.5); }
+    .entry-card-vote:hover  { border-color:var(--indigo-light);box-shadow:0 20px 50px rgba(79,70,229,.3); }
+    .entry-card-admin:hover { border-color:var(--gold);box-shadow:0 20px 50px rgba(245,158,11,.2); }
+    .card-icon { width:72px;height:72px;border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;font-size:2rem; }
+    .card-icon-vote  { background:var(--indigo-glow);border:1px solid rgba(99,102,241,.3); }
+    .card-icon-admin { background:var(--gold-glow);  border:1px solid rgba(245,158,11,.3); }
+    .card-title { font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:700; }
+    .card-desc { font-size:.875rem;color:var(--white-70);text-align:center;line-height:1.5; }
+    .card-arrow { width:36px;height:36px;background:var(--white-10);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1rem;margin-top:6px;transition:var(--transition-fast); }
+    .entry-card:hover .card-arrow { background:var(--white-20);transform:translateX(4px); }
+    .info-strip { display:flex;flex-wrap:wrap;justify-content:center;gap:28px;color:var(--white-70);font-size:.875rem; }
+    .info-item { display:flex;align-items:center;gap:6px; }
+    .particles { position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden; }
+    .particle { position:absolute;width:4px;height:4px;background:var(--indigo-light);border-radius:50%;opacity:0;animation:rise var(--dur,8s) var(--delay,0s) infinite ease-in; }
+    @keyframes rise { 0%{opacity:0;transform:translateY(0) scale(1)}10%{opacity:.6}90%{opacity:.2}100%{opacity:0;transform:translateY(-100vh) scale(0)} }
+  </style>
+</head>
+<body>
+  <div class="bg-mesh"></div>
+  <div class="particles" id="particles"></div>
+  <div id="toast-container"></div>
+
+  <div class="hero">
+    <div class="hero-emblem">🏛️</div>
+    <p class="hero-subtitle">Official Election Portal</p>
+    <h1 class="hero-title gradient-text" id="election-name">Student Council Elections</h1>
+    <p class="hero-college" id="college-name">Loading…</p>
+
+    <div id="status-pill" class="status-pill status-closed">
+      <span class="status-dot"></span>
+      <span id="status-text">Loading…</span>
+    </div>
+
+    <div class="entry-cards">
+      <a href="vote.html" class="entry-card entry-card-vote" id="vote-card">
+        <div class="card-icon card-icon-vote">🗳️</div>
+        <div class="card-title">Cast Your Vote</div>
+        <p class="card-desc">Vote for your class representatives. Each student gets one ballot.</p>
+        <div class="card-arrow">→</div>
+      </a>
+      <a href="admin.html" class="entry-card entry-card-admin">
+        <div class="card-icon card-icon-admin">🔐</div>
+        <div class="card-title">Admin Panel</div>
+        <p class="card-desc">Manage classes, students, candidates and view election results.</p>
+        <div class="card-arrow">→</div>
+      </a>
+    </div>
+
+    <div class="info-strip">
+      <div class="info-item">📚 <span id="info-classes">— Classes</span></div>
+      <div class="info-item">👥 <span id="info-students">— Students</span></div>
+      <div class="info-item">🗳️ <span id="info-votes">— Votes Cast</span></div>
+      <div class="info-item">🏆 <span id="info-positions">— Positions</span></div>
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script>
+    async function initPage() {
+      try {
+        const [settings, stats, positions] = await Promise.all([
+          API.Settings.get(),
+          API.Votes.stats(),
+          API.Positions.all(),
+        ]);
+        document.getElementById('election-name').textContent = settings.election_name || 'Student Council Elections';
+        document.getElementById('college-name').textContent  = settings.college_name  || '';
+        document.title = `${settings.election_name || 'Student Elections'} — Home`;
+
+        const pill = document.getElementById('status-pill');
+        const txt  = document.getElementById('status-text');
+        if (settings.election_open) {
+          pill.className = 'status-pill status-open'; txt.textContent = 'Voting is Open';
+        } else {
+          pill.className = 'status-pill status-closed'; txt.textContent = 'Voting is Closed';
+          const vc = document.getElementById('vote-card');
+          vc.style.opacity = '0.5'; vc.style.pointerEvents = 'none'; vc.title = 'Voting is currently closed';
+        }
+
+        const s = stats;
+        document.getElementById('info-classes').textContent  = `${s.total_classes || 0} Classes`;
+        document.getElementById('info-students').textContent = `${s.total_students || 0} Students`;
+        document.getElementById('info-votes').textContent    = `${s.total_voted || 0} Votes Cast`;
+        document.getElementById('info-positions').textContent= `${positions.length} Positions`;
+      } catch(e) {
+        document.getElementById('college-name').textContent = 'Server offline — check your connection';
+      }
+    }
+
+    function createParticles() {
+      const c = document.getElementById('particles');
+      const colors = ['#6366f1','#f59e0b','#10b981','#a78bfa'];
+      for (let i=0;i<30;i++) {
+        const p = document.createElement('div'); p.className='particle';
+        p.style.cssText=`left:${Math.random()*100}%;bottom:-10px;width:${2+Math.random()*4}px;height:${2+Math.random()*4}px;background:${colors[Math.floor(Math.random()*4)]};--dur:${6+Math.random()*10}s;--delay:${Math.random()*8}s;`;
+        c.appendChild(p);
+      }
+    }
+    createParticles();
+    initPage();
+  </script>
+</body>
+</html>

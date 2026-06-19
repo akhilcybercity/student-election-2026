@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cast Your Vote — Elections</title>
+  <meta name="description" content="Student voting portal for class elections. Select your class and cast your vote." />
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/vote.css" />
+</head>
+<body>
+<div class="bg-mesh"></div>
+<div id="toast-container"></div>
+
+<div class="vote-wrapper">
+
+  <!-- Top bar -->
+  <div class="vote-topbar">
+    <a href="index.html" class="back-btn">← Home</a>
+    <div class="text-sm text-muted election-name-text">Student Council Elections 2026</div>
+    <div style="width:60px"></div>
+  </div>
+
+  <!-- Step progress dots -->
+  <div class="step-dots">
+    <div class="step-dot active"></div>
+    <div class="step-dot"></div>
+    <div class="step-dot"></div>
+    <div class="step-dot"></div>
+  </div>
+
+  <!-- ═══ SCREEN: LOOKUP ══════════════════════════════════════════ -->
+  <div id="screen-lookup" class="vote-screen" style="display:none;width:100%;display:flex;flex-direction:column;align-items:center">
+    <div class="step-header">
+      <div class="step-icon">🏫</div>
+      <h1 class="step-title gradient-text">Identify Yourself</h1>
+      <p class="step-sub">Select your class and your name to proceed to the ballot</p>
+    </div>
+
+    <div class="lookup-card glass-strong">
+      <div style="display:flex;flex-direction:column;gap:18px">
+        <div class="form-group">
+          <label class="form-label" for="vote-class-select">Your Class</label>
+          <select id="vote-class-select" class="form-select" onchange="onClassChange()">
+            <option value="">— Select your class —</option>
+          </select>
+        </div>
+
+        <div class="form-group" id="student-select-wrap" style="display:none">
+          <label class="form-label" for="vote-student-select">Your Name</label>
+          <select id="vote-student-select" class="form-select">
+            <option value="">— Select your name —</option>
+          </select>
+        </div>
+
+        <div id="lookup-error" class="alert alert-error" style="display:none"></div>
+
+        <button class="btn btn-primary btn-lg" onclick="proceedToVote()" style="width:100%;justify-content:center;margin-top:4px">
+          Continue to Ballot →
+        </button>
+      </div>
+
+      <div class="divider"></div>
+
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div class="alert alert-info">ℹ️ Each student can vote only once</div>
+        <div class="alert alert-warning">⚠️ Absent students cannot vote</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SCREEN: BALLOT ══════════════════════════════════════════ -->
+  <div id="screen-ballot" class="vote-screen" style="display:none;width:100%;display:flex;flex-direction:column;align-items:center">
+
+    <div class="step-header">
+      <div class="step-icon">🗳️</div>
+      <h1 class="step-title gradient-text">Your Ballot</h1>
+      <p class="step-sub">Select one candidate for each election position</p>
+    </div>
+
+    <!-- Identity banner -->
+    <div class="identity-banner">
+      <div class="identity-avatar">👤</div>
+      <div class="identity-info">
+        <div class="identity-name" id="voter-name">—</div>
+        <div class="identity-meta" id="voter-meta">—</div>
+      </div>
+      <span class="badge badge-indigo">Verified ✓</span>
+    </div>
+
+    <!-- Ballot posts -->
+    <div class="ballot-wrapper">
+      <div id="ballot-posts"></div>
+    </div>
+
+    <!-- Footer -->
+    <div class="ballot-footer">
+      <div class="ballot-summary" id="ballot-summary-text">0 positions selected</div>
+      <button class="btn btn-primary btn-lg" onclick="proceedToConfirm()" style="min-width:240px;justify-content:center">
+        Review Ballot →
+      </button>
+    </div>
+  </div>
+
+  <!-- ═══ SCREEN: CONFIRM ══════════════════════════════════════════ -->
+  <div id="screen-confirm" class="vote-screen" style="display:none;width:100%;display:flex;flex-direction:column;align-items:center">
+
+    <div class="step-header">
+      <div class="step-icon">👁️</div>
+      <h1 class="step-title gradient-text">Review Your Ballot</h1>
+      <p class="step-sub">Please review all your selections before submitting. This action is final.</p>
+    </div>
+
+    <div class="confirm-screen glass-strong">
+      <div style="font-weight:700;margin-bottom:16px;font-size:1.05rem">Your Selections</div>
+      <div id="confirm-items"></div>
+
+      <div class="divider"></div>
+
+      <div class="alert alert-warning" style="margin-bottom:20px">
+        ⚠️ Once submitted, your vote <strong>cannot be changed</strong>. Make sure all selections are correct.
+      </div>
+
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn btn-ghost" onclick="goBackToBallot()" style="flex:1;justify-content:center">
+          ← Edit Ballot
+        </button>
+        <button class="btn btn-gold btn-lg" id="submit-vote-btn" onclick="submitVote()" style="flex:2;justify-content:center">
+          ✅ Submit My Vote
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SCREEN: SUCCESS ══════════════════════════════════════════ -->
+  <div id="screen-success" class="vote-screen" style="display:none;width:100%;display:flex;flex-direction:column;align-items:center">
+    <div class="success-screen glass-strong">
+      <div class="success-icon">🎉</div>
+      <h1 class="success-title gradient-text">Vote Cast!</h1>
+      <p class="success-sub">Your vote has been successfully recorded. Thank you for participating in the democratic process!</p>
+
+      <div class="alert alert-success" style="margin-bottom:24px;justify-content:center">
+        ✅ Your ballot has been securely recorded
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <a href="index.html" class="btn btn-primary btn-lg" style="justify-content:center">
+          ← Return to Home
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SCREEN: ERROR ════════════════════════════════════════════ -->
+  <div id="screen-error" class="vote-screen" style="display:none;width:100%;display:flex;flex-direction:column;align-items:center">
+    <div class="error-screen glass-strong" style="border:1px solid rgba(244,63,94,0.3)">
+      <div class="error-icon">🚫</div>
+      <h1 class="error-title" id="error-title-text">Cannot Vote</h1>
+      <p class="error-msg" id="error-msg-text">An error occurred.</p>
+
+      <a href="index.html" class="btn btn-ghost btn-lg" style="justify-content:center;width:100%">
+        ← Return to Home
+      </a>
+    </div>
+  </div>
+
+</div><!-- /vote-wrapper -->
+
+<script src="js/api.js"></script>
+<script src="js/vote.js"></script>
+</body>
+</html>

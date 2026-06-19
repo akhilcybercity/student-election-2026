@@ -1,0 +1,240 @@
+/* ═══════════════════════════════════════════════════════════════
+   vote.css — Voting Portal Styles
+═══════════════════════════════════════════════════════════════ */
+
+/* ─── Vote wrapper ───────────────────────────────────────────── */
+.vote-wrapper {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 40px 24px 60px;
+  position: relative;
+  z-index: 1;
+}
+
+/* ─── Top bar ────────────────────────────────────────────────── */
+.vote-topbar {
+  width: 100%; max-width: 720px;
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 40px;
+}
+.vote-topbar .back-btn {
+  display: flex; align-items: center; gap: 6px;
+  color: var(--white-70); font-size: 0.875rem; font-weight: 500;
+  text-decoration: none; transition: var(--transition-fast);
+}
+.vote-topbar .back-btn:hover { color: var(--white); }
+
+/* ─── Step header ────────────────────────────────────────────── */
+.step-header { width: 100%; max-width: 720px; text-align: center; margin-bottom: 32px; }
+.step-icon {
+  width: 64px; height: 64px;
+  background: linear-gradient(135deg, var(--indigo), var(--indigo-light));
+  border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-size: 1.8rem; margin: 0 auto 16px;
+  box-shadow: 0 0 30px var(--indigo-glow);
+}
+.step-title { font-size: clamp(1.4rem, 4vw, 2rem); margin-bottom: 8px; }
+.step-sub   { color: var(--white-70); font-size: 0.9375rem; }
+
+/* ─── Step progress dots ─────────────────────────────────────── */
+.step-dots {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  margin-bottom: 36px;
+}
+.step-dot {
+  width: 32px; height: 8px; border-radius: 100px;
+  background: var(--white-10); transition: var(--transition);
+}
+.step-dot.active  { background: var(--indigo-light); width: 48px; }
+.step-dot.done    { background: var(--emerald); }
+
+/* ─── Lookup card ────────────────────────────────────────────── */
+.lookup-card {
+  width: 100%; max-width: 480px;
+  padding: 40px 36px;
+  border-radius: var(--radius-xl);
+}
+
+/* ─── Student identity card ──────────────────────────────────── */
+.identity-banner {
+  width: 100%; max-width: 720px;
+  padding: 18px 24px;
+  border-radius: var(--radius-md);
+  background: var(--indigo-glow);
+  border: 1px solid rgba(99,102,241,0.3);
+  display: flex; align-items: center; gap: 14px;
+  margin-bottom: 28px;
+}
+.identity-avatar {
+  width: 44px; height: 44px;
+  background: linear-gradient(135deg, var(--indigo), var(--indigo-light));
+  border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-size: 1.2rem; flex-shrink: 0;
+}
+.identity-info { flex: 1; }
+.identity-name { font-size: 1rem; font-weight: 700; }
+.identity-meta { font-size: 0.8125rem; color: var(--white-70); }
+
+/* ─── Post sections ──────────────────────────────────────────── */
+.ballot-wrapper { width: 100%; max-width: 720px; }
+
+.post-section {
+  margin-bottom: 28px;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--white-10);
+  background: var(--white-05);
+}
+
+.post-header {
+  padding: 14px 20px;
+  background: var(--white-05);
+  border-bottom: 1px solid var(--white-10);
+  display: flex; align-items: center; gap: 10px;
+}
+.post-header-icon { font-size: 1.3rem; }
+.post-header-label { font-size: 0.9rem; font-weight: 700; }
+.post-header-gender {
+  margin-left: auto;
+  font-size: 0.75rem; font-weight: 600; padding: 2px 8px;
+  border-radius: 100px;
+}
+.post-header-gender.boy  { background: rgba(59,130,246,0.15); color: #93c5fd; }
+.post-header-gender.girl { background: rgba(236,72,153,0.15); color: #f9a8d4; }
+
+.candidates-list { padding: 8px; }
+
+/* ─── Candidate option ───────────────────────────────────────── */
+.candidate-option {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 16px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  border: 2px solid transparent;
+  margin-bottom: 6px;
+}
+.candidate-option:last-child { margin-bottom: 0; }
+.candidate-option:hover { background: var(--white-10); }
+.candidate-option.selected {
+  background: var(--indigo-glow);
+  border-color: var(--indigo-light);
+}
+.candidate-option input[type="radio"] { display: none; }
+
+.candidate-radio {
+  width: 22px; height: 22px;
+  border: 2px solid var(--white-20);
+  border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  transition: var(--transition-fast);
+}
+.candidate-option.selected .candidate-radio {
+  border-color: var(--indigo-light);
+  background: var(--indigo);
+}
+.candidate-radio-dot {
+  width: 8px; height: 8px;
+  background: white; border-radius: 50%;
+  opacity: 0; transform: scale(0);
+  transition: var(--transition-fast);
+}
+.candidate-option.selected .candidate-radio-dot { opacity: 1; transform: scale(1); }
+
+.candidate-info { flex: 1; }
+.candidate-name-text { font-size: 0.9375rem; font-weight: 600; }
+.candidate-roll-text { font-size: 0.75rem; color: var(--white-70); }
+
+.candidate-check {
+  font-size: 1.2rem; opacity: 0;
+  transition: var(--transition-fast);
+}
+.candidate-option.selected .candidate-check { opacity: 1; }
+
+/* ─── NOTA option ────────────────────────────────────────────── */
+.nota-option {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 16px; margin: 4px 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer; transition: var(--transition-fast);
+  border: 2px solid transparent;
+  opacity: 0.7;
+}
+.nota-option:hover { background: var(--white-05); opacity: 1; }
+.nota-option.selected { border-color: var(--slate-light); background: var(--white-05); opacity: 1; }
+.nota-option input[type="radio"] { display: none; }
+
+/* ─── No candidates state ────────────────────────────────────── */
+.no-candidates {
+  padding: 16px 20px;
+  color: var(--white-70);
+  font-size: 0.875rem;
+  font-style: italic;
+  text-align: center;
+}
+
+/* ─── Ballot footer ──────────────────────────────────────────── */
+.ballot-footer {
+  width: 100%; max-width: 720px;
+  margin-top: 8px;
+  padding: 20px 0;
+  display: flex; flex-direction: column; gap: 12px; align-items: center;
+}
+.ballot-summary {
+  font-size: 0.875rem; color: var(--white-70); text-align: center;
+}
+
+/* ─── Confirmation screen ────────────────────────────────────── */
+.confirm-screen {
+  width: 100%; max-width: 600px;
+  padding: 40px 32px;
+  border-radius: var(--radius-xl);
+  text-align: left;
+}
+.confirm-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 0; border-bottom: 1px solid var(--white-10);
+  font-size: 0.9rem;
+}
+.confirm-item:last-child { border-bottom: none; }
+.confirm-post-name { color: var(--white-70); font-size: 0.8rem; }
+.confirm-candidate-name { font-weight: 700; }
+
+/* ─── Success screen ─────────────────────────────────────────── */
+.success-screen {
+  width: 100%; max-width: 500px;
+  padding: 56px 40px;
+  border-radius: var(--radius-xl);
+  text-align: center;
+}
+.success-icon {
+  font-size: 5rem; margin-bottom: 20px;
+  animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.27, 1.55) forwards;
+}
+@keyframes bounceIn {
+  0%   { transform: scale(0); opacity: 0; }
+  70%  { transform: scale(1.15); }
+  100% { transform: scale(1);   opacity: 1; }
+}
+.success-title { font-size: 1.75rem; margin-bottom: 12px; }
+.success-sub   { color: var(--white-70); font-size: 0.9375rem; margin-bottom: 28px; }
+
+/* ─── Error screen ───────────────────────────────────────────── */
+.error-screen {
+  width: 100%; max-width: 460px;
+  padding: 48px 36px;
+  border-radius: var(--radius-xl);
+  text-align: center;
+}
+.error-icon  { font-size: 4rem; margin-bottom: 16px; }
+.error-title { font-size: 1.5rem; margin-bottom: 10px; }
+.error-msg   { color: var(--white-70); font-size: 0.9rem; margin-bottom: 24px; line-height: 1.6; }
+
+@media (max-width: 600px) {
+  .vote-wrapper { padding: 24px 16px 48px; }
+  .lookup-card  { padding: 28px 20px; }
+  .confirm-screen, .success-screen, .error-screen { padding: 32px 20px; }
+}

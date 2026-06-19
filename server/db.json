@@ -1,0 +1,215 @@
+{
+  "settings": [
+    {
+      "key": "election_name",
+      "value": "Student Council Elections 2027"
+    },
+    {
+      "key": "college_name",
+      "value": "SFS PU COLLEGE"
+    },
+    {
+      "key": "election_open",
+      "value": "true"
+    },
+    {
+      "key": "admin_password",
+      "value": "$2a$10$vJYO.9/BCeNEM3tzLu4qmufg.0x0Qju4yzrEZzpZ6GeZZ9yPlFEJi"
+    }
+  ],
+  "classes": [
+    {
+      "id": "a65ea424-a7dc-4685-899b-149af62b2516",
+      "name": "PCMB FIRST YEAR",
+      "course": "SCIENCE",
+      "year": 1,
+      "section": "A",
+      "created_at": "2026-06-19T06:06:56.585Z"
+    }
+  ],
+  "positions": [
+    {
+      "id": "pos-cr-boy",
+      "label": "Class Representative (Boy)",
+      "gender": "Boy",
+      "icon": "🎓",
+      "sort_order": 1,
+      "created_at": "2026-06-19T05:36:15.198Z"
+    },
+    {
+      "id": "pos-cr-girl",
+      "label": "Class Representative (Girl)",
+      "gender": "Girl",
+      "icon": "🎓",
+      "sort_order": 2,
+      "created_at": "2026-06-19T05:36:15.199Z"
+    },
+    {
+      "id": "pos-sports-boy",
+      "label": "Sports Representative (Boy)",
+      "gender": "Boy",
+      "icon": "⚽",
+      "sort_order": 3,
+      "created_at": "2026-06-19T05:36:15.199Z"
+    },
+    {
+      "id": "pos-sports-girl",
+      "label": "Sports Representative (Girl)",
+      "gender": "Girl",
+      "icon": "⚽",
+      "sort_order": 4,
+      "created_at": "2026-06-19T05:36:15.199Z"
+    },
+    {
+      "id": "pos-cultural-boy",
+      "label": "Cultural Representative (Boy)",
+      "gender": "Boy",
+      "icon": "🎭",
+      "sort_order": 5,
+      "created_at": "2026-06-19T05:36:15.199Z"
+    },
+    {
+      "id": "pos-cultural-girl",
+      "label": "Cultural Representative (Girl)",
+      "gender": "Girl",
+      "icon": "🎭",
+      "sort_order": 6,
+      "created_at": "2026-06-19T05:36:15.199Z"
+    },
+    {
+      "id": "76d36fd4-c40c-47de-b70d-86e941287820",
+      "label": "HEAD BOY",
+      "gender": "Boy",
+      "icon": "🏅",
+      "sort_order": 1,
+      "created_at": "2026-06-19T06:11:20.169Z"
+    }
+  ],
+  "students": [
+    {
+      "id": "2b9e55d8-267b-4efb-8446-227ebbb2cf25",
+      "name": "xyz",
+      "roll_no": "133",
+      "gender": "Girl",
+      "class_id": "a65ea424-a7dc-4685-899b-149af62b2516",
+      "has_voted": false,
+      "is_absent": false,
+      "voted_at": null,
+      "created_at": "2026-06-19T06:13:46.611Z"
+    },
+    {
+      "id": "693b26bc-44b7-41e2-a7d7-f984f718895a",
+      "name": "fmfmmn",
+      "roll_no": "w21e",
+      "gender": "Boy",
+      "class_id": "a65ea424-a7dc-4685-899b-149af62b2516",
+      "has_voted": false,
+      "is_absent": false,
+      "voted_at": null,
+      "created_at": "2026-06-19T06:13:57.424Z"
+    },
+    {
+      "id": "d2767354-bd81-4205-89af-d163e5adf0e0",
+      "name": "nxakcnsvj",
+      "roll_no": "xcacv",
+      "gender": "Boy",
+      "class_id": "a65ea424-a7dc-4685-899b-149af62b2516",
+      "has_voted": false,
+      "is_absent": false,
+      "voted_at": null,
+      "created_at": "2026-06-19T06:14:26.475Z"
+    },
+    {
+      "id": "bbdecf5d-39f6-4d6a-93c3-d47800fd6771",
+      "name": "dsc",
+      "roll_no": "532526",
+      "gender": "Girl",
+      "class_id": "a65ea424-a7dc-4685-899b-149af62b2516",
+      "has_voted": false,
+      "is_absent": false,
+      "voted_at": null,
+      "created_at": "2026-06-19T06:14:42.969Z"
+    },
+    {
+      "id": "bfb9fe04-7405-4b42-8ff3-c2ff955ff925",
+      "name": "nvksdnb",
+      "roll_no": "13245",
+      "gender": "Girl",
+      "class_id": "a65ea424-a7dc-4685-899b-149af62b2516",
+      "has_voted": false,
+      "is_absent": false,
+      "voted_at": null,
+      "created_at": "2026-06-19T06:15:02.295Z"
+    },
+    {
+      "id": "adc9d47b-c21a-45ba-b1ee-a4abfe42beff",
+      "name": "fergrgb",
+      "roll_no": "113324",
+      "gender": "Girl",
+      "class_id": "a65ea424-a7dc-4685-899b-149af62b2516",
+      "has_voted": false,
+      "is_absent": false,
+      "voted_at": null,
+      "created_at": "2026-06-19T06:15:20.628Z"
+    }
+  ],
+  "candidates": [
+    {
+      "id": "582b0d83-21a1-46d4-ab16-b5d8523ce22d",
+      "student_id": "693b26bc-44b7-41e2-a7d7-f984f718895a",
+      "class_id": "a65ea424-a7dc-4685-899b-149af62b2516",
+      "position_id": "pos-cr-boy",
+      "created_at": "2026-06-19T06:17:39.341Z"
+    },
+    {
+      "id": "a07b7a98-91ac-4e7a-9ac9-d16337d5f27f",
+      "student_id": "d2767354-bd81-4205-89af-d163e5adf0e0",
+      "class_id": "a65ea424-a7dc-4685-899b-149af62b2516",
+      "position_id": "pos-cr-boy",
+      "created_at": "2026-06-19T06:17:48.322Z"
+    },
+    {
+      "id": "9aad6163-40f2-4cde-b841-93405436d128",
+      "student_id": "693b26bc-44b7-41e2-a7d7-f984f718895a",
+      "class_id": "a65ea424-a7dc-4685-899b-149af62b2516",
+      "position_id": "76d36fd4-c40c-47de-b70d-86e941287820",
+      "created_at": "2026-06-19T06:17:57.850Z"
+    },
+    {
+      "id": "1128caa6-0a3c-4052-a90e-286d11be709f",
+      "student_id": "adc9d47b-c21a-45ba-b1ee-a4abfe42beff",
+      "class_id": "a65ea424-a7dc-4685-899b-149af62b2516",
+      "position_id": "pos-cr-girl",
+      "created_at": "2026-06-19T06:18:07.141Z"
+    },
+    {
+      "id": "96deeb62-0d4d-4e25-8148-30c776266c48",
+      "student_id": "693b26bc-44b7-41e2-a7d7-f984f718895a",
+      "class_id": "a65ea424-a7dc-4685-899b-149af62b2516",
+      "position_id": "pos-sports-boy",
+      "created_at": "2026-06-19T06:18:14.777Z"
+    },
+    {
+      "id": "38ceeeac-4b57-4e52-9eb7-9d882b9b36a4",
+      "student_id": "adc9d47b-c21a-45ba-b1ee-a4abfe42beff",
+      "class_id": "a65ea424-a7dc-4685-899b-149af62b2516",
+      "position_id": "pos-sports-girl",
+      "created_at": "2026-06-19T06:18:22.206Z"
+    },
+    {
+      "id": "5f011c3d-0e25-4d40-bff4-93444faaa3b4",
+      "student_id": "693b26bc-44b7-41e2-a7d7-f984f718895a",
+      "class_id": "a65ea424-a7dc-4685-899b-149af62b2516",
+      "position_id": "pos-cultural-boy",
+      "created_at": "2026-06-19T06:18:27.942Z"
+    },
+    {
+      "id": "32dcecfd-0348-47c3-81c4-f511a691e5ee",
+      "student_id": "adc9d47b-c21a-45ba-b1ee-a4abfe42beff",
+      "class_id": "a65ea424-a7dc-4685-899b-149af62b2516",
+      "position_id": "pos-cultural-girl",
+      "created_at": "2026-06-19T06:18:33.878Z"
+    }
+  ],
+  "votes": []
+}
