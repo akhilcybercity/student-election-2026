@@ -11,7 +11,7 @@ let voteState = {
 function showScreen(name) {
   document.querySelectorAll('.vote-screen').forEach(s => s.style.display='none');
   const el = document.getElementById(`screen-${name}`);
-  if (el) { el.style.display='block'; el.classList.remove('fade-in'); void el.offsetWidth; el.classList.add('fade-in'); }
+  if (el) { el.style.display='flex'; el.classList.remove('fade-in'); void el.offsetWidth; el.classList.add('fade-in'); }
   updateStepDots(name); voteState.step = name;
 }
 

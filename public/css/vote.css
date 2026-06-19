@@ -14,6 +14,16 @@
   z-index: 1;
 }
 
+/* ─── Vote screen wrapper ────────────────────────────────────── */
+.vote-screen {
+  width: 100%;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+
 /* ─── Top bar ────────────────────────────────────────────────── */
 .vote-topbar {
   width: 100%; max-width: 720px;
