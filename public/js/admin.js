@@ -582,7 +582,11 @@ async function renderResults() {
   container.innerHTML = '<div class="text-center text-muted" style="padding:40px">⏳ Loading results…</div>';
   try {
     const classId = document.getElementById('result-filter-class')?.value || '';
-    const [results, classes] = await Promise.all([API.Votes.results(classId), API.Classes.all()]);
+    const [results, classes, settings] = await Promise.all([
+      API.Votes.results(classId),
+      API.Classes.all(),
+      API.Settings.get()
+    ]);
 
     // Populate filter
     const fSel = document.getElementById('result-filter-class');
@@ -592,7 +596,68 @@ async function renderResults() {
 
     if (!results.length) { container.innerHTML='<div class="empty-state"><div class="empty-icon">📊</div><p>No results yet</p></div>'; return; }
 
-    container.innerHTML = results.map(({ class: cls, stats, positions }) => {
+    const isClosed = !settings.election_open;
+
+    // 1. Render Declaration Banner
+    const bannerHtml = isClosed
+      ? `<div class="results-declaration-banner">
+          <div class="banner-badge">📜</div>
+          <div class="banner-text">
+            <h3>Election Results Declared</h3>
+            <p>The student council election has concluded. Below are the final certified standings and elected representatives.</p>
+          </div>
+        </div>`
+      : `<div class="results-declaration-banner" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(16, 185, 129, 0.05)); border-color: var(--emerald); box-shadow: 0 10px 30px rgba(16, 185, 129, 0.1);">
+          <div class="banner-badge">📊</div>
+          <div class="banner-text">
+            <h3 style="color: #34d399">Live Election Results</h3>
+            <p>The election is currently open and active. Standings below update in real-time as votes are cast.</p>
+          </div>
+        </div>`;
+
+    // 2. Render Elected Council Grid
+    let winnersHtml = '';
+    const allWinners = [];
+    results.forEach(({ class: cls, positions }) => {
+      positions.forEach(pos => {
+        if (pos.candidates.length > 0 && pos.candidates[0].votes > 0) {
+          const topVotes = pos.candidates[0].votes;
+          const tiedCandidates = pos.candidates.filter(c => c.votes === topVotes);
+          const isTie = tiedCandidates.length > 1;
+          const names = tiedCandidates.map(c => c.name).join(' & ');
+          allWinners.push({
+            className: cls.name,
+            positionLabel: pos.label,
+            positionIcon: pos.icon,
+            candidateName: names,
+            votes: topVotes,
+            isTie
+          });
+        }
+      });
+    });
+
+    if (allWinners.length > 0) {
+      const winnerCards = allWinners.map(w => `
+        <div class="elected-leader-card">
+          <span class="leader-badge">${w.isTie ? '👔 Tie' : '🎉 Elected'}</span>
+          <div class="leader-class">${w.className}</div>
+          <div class="leader-post">${w.positionIcon} ${w.positionLabel}</div>
+          <div class="leader-name">${w.candidateName}</div>
+          <div class="leader-votes-count">${w.votes} Vote${w.votes !== 1 ? 's' : ''}</div>
+        </div>
+      `).join('');
+
+      winnersHtml = `
+        <div class="elected-council-section">
+          <div class="elected-council-title">🏆 ${isClosed ? 'Elected Student Council' : 'Current Leading Candidates'}</div>
+          <div class="elected-council-grid">${winnerCards}</div>
+        </div>
+      `;
+    }
+
+    // 3. Render Class-by-Class Results Cards
+    const classesHtml = results.map(({ class: cls, stats, positions }) => {
       const pct = stats.total > 0 ? Math.round((stats.voted / stats.total) * 100) : 0;
       const posHtml = positions.map(pos => {
         const maxV = pos.candidates.length ? pos.candidates[0].votes : 1;
@@ -631,6 +696,8 @@ async function renderResults() {
         <div class="result-posts-grid">${posHtml}</div>
       </div>`;
     }).join('');
+
+    container.innerHTML = bannerHtml + winnersHtml + classesHtml;
   } catch(e) { container.innerHTML=`<div class="alert alert-error">❌ ${e.message}</div>`; }
 }
 
@@ -710,7 +777,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('topbar-date').textContent = new Date().toLocaleDateString('en-IN',{weekday:'short',year:'numeric',month:'short',day:'numeric'});
   checkAuth();
 
-  // Auto refresh active panel views every 5 seconds to keep the admin side in sync with live votes
+  // Auto refresh active panel views every 60 seconds to keep the admin side in sync with live votes
   setInterval(() => {
     if (!Auth.isLoggedIn()) return;
     if (currentPage === 'students') {
@@ -726,6 +793,6 @@ document.addEventListener('DOMContentLoaded', () => {
         renderResults();
       }
     }
-  }, 5000);
+  }, 60000);
 });
 
