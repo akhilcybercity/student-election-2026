@@ -21,6 +21,7 @@ app.use('/api/classes',    require('./routes/classes'));
 app.use('/api/positions',  require('./routes/positions'));
 app.use('/api/students',   require('./routes/students'));
 app.use('/api/candidates', require('./routes/candidates'));
+app.use('/api/staff',      require('./routes/staff'));
 app.use('/api/votes',      require('./routes/votes'));
 
 // ─── Health check ────────────────────────────────────────────────

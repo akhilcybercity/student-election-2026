@@ -30,12 +30,17 @@ async function checkAuth() {
 }
 
 async function doLogin() {
+  const un  = document.getElementById('login-username').value.trim();
   const pw  = document.getElementById('login-password').value.trim();
   const err = document.getElementById('login-error');
   err.style.display = 'none';
   try {
-    const { token } = await API.Auth.login(pw);
-    Auth.setToken(token);
+    const res = await API.Auth.login(un, pw);
+    Auth.setToken(res.token);
+    sessionStorage.setItem('ems_role', res.role || 'admin');
+    sessionStorage.setItem('ems_username', res.username || 'admin');
+    sessionStorage.setItem('ems_session_id', res.sessionId || '');
+    sessionStorage.setItem('ems_classes', JSON.stringify(res.classes || []));
     showAdminPanel();
   } catch {
     err.style.display = 'flex';
@@ -45,6 +50,10 @@ async function doLogin() {
 
 function doLogout() {
   Auth.clear();
+  sessionStorage.removeItem('ems_role');
+  sessionStorage.removeItem('ems_username');
+  sessionStorage.removeItem('ems_session_id');
+  sessionStorage.removeItem('ems_classes');
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('admin-panel').style.display  = 'none';
 }
@@ -52,6 +61,27 @@ function doLogout() {
 function showAdminPanel() {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('admin-panel').style.display  = 'flex';
+  
+  // Setup UI based on role
+  const role = sessionStorage.getItem('ems_role') || 'admin';
+  const username = sessionStorage.getItem('ems_username') || 'admin';
+  
+  // Update avatar
+  document.querySelector('.admin-avatar').textContent = username.charAt(0).toUpperCase();
+  
+  if (role === 'staff') {
+    // Hide admin only elements
+    document.querySelectorAll('.admin-only').forEach(el => el.style.setProperty('display', 'none', 'important'));
+    // Hide the election status toggle in sidebar
+    const toggleWrap = document.querySelector('.election-toggle-wrap');
+    if (toggleWrap) toggleWrap.style.setProperty('display', 'none', 'important');
+  } else {
+    // Show admin only elements
+    document.querySelectorAll('.admin-only').forEach(el => el.style.display = '');
+    const toggleWrap = document.querySelector('.election-toggle-wrap');
+    if (toggleWrap) toggleWrap.style.display = '';
+  }
+  
   navigateTo('dashboard');
   loadElectionToggle();
 }
@@ -81,6 +111,13 @@ async function toggleElection() {
 // ─── Navigation ───────────────────────────────────────────────────
 let currentPage = 'dashboard';
 function navigateTo(page) {
+  const role = sessionStorage.getItem('ems_role') || 'admin';
+  const adminOnlyPages = ['positions', 'candidates', 'staff', 'settings'];
+  if (role === 'staff' && adminOnlyPages.includes(page)) {
+    navigateTo('dashboard');
+    return;
+  }
+
   currentPage = page;
   document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
   const navEl = document.querySelector(`[data-page="${page}"]`);
@@ -88,7 +125,7 @@ function navigateTo(page) {
   document.querySelectorAll('.page-section').forEach(s => s.style.display = 'none');
   const section = document.getElementById(`page-${page}`);
   if (section) { section.style.display='block'; section.classList.remove('fade-in'); void section.offsetWidth; section.classList.add('fade-in'); }
-  const titles = { dashboard:'Dashboard', classes:'Manage Classes', students:'Manage Students', candidates:'Manage Candidates', positions:'Manage Positions', absent:'Mark Absent / Present', results:'Election Results', settings:'Settings' };
+  const titles = { dashboard:'Dashboard', classes:'Manage Classes', students:'Manage Students', candidates:'Manage Candidates', positions:'Manage Positions', absent:'Mark Absent / Present', results:'Election Results', settings:'Settings', staff:'Staff & Sessions' };
   document.getElementById('topbar-title').textContent = titles[page] || page;
   switch(page) {
     case 'dashboard':  renderDashboard();  break;
@@ -99,6 +136,7 @@ function navigateTo(page) {
     case 'absent':     renderAbsent();     break;
     case 'results':    renderResults();    break;
     case 'settings':   renderSettings();   break;
+    case 'staff':      renderStaff();      break;
   }
   document.getElementById('sidebar').classList.remove('open');
   document.getElementById('sidebar-overlay').classList.remove('active');
@@ -131,7 +169,14 @@ async function renderDashboard() {
     const tbody = document.getElementById('dash-class-progress');
     if (!classes.length) { tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted" style="padding:20px">No classes yet</td></tr>'; return; }
 
-    const statsRows = await Promise.all(classes.slice(0,15).map(c => API.Classes.stats(c.id).then(s => ({ cls:c, s }))));
+    let targetClasses = classes;
+    const role = sessionStorage.getItem('ems_role') || 'admin';
+    if (role === 'staff') {
+      const assignedClasses = JSON.parse(sessionStorage.getItem('ems_classes') || '[]');
+      targetClasses = classes.filter(c => assignedClasses.includes(c.id));
+    }
+
+    const statsRows = await Promise.all(targetClasses.slice(0,15).map(c => API.Classes.stats(c.id).then(s => ({ cls:c, s }))));
     tbody.innerHTML = statsRows.map(({ cls, s }) => {
       const p = s.total > 0 ? Math.round((s.voted / s.total) * 100) : 0;
       return `<tr>
@@ -151,7 +196,15 @@ async function renderDashboard() {
 // ─── Classes ──────────────────────────────────────────────────────
 async function renderClasses() {
   try {
-    const classes = await API.Classes.all();
+    let classes = await API.Classes.all();
+    
+    // Restrict classes for staff
+    const role = sessionStorage.getItem('ems_role') || 'admin';
+    if (role === 'staff') {
+      const assignedClasses = JSON.parse(sessionStorage.getItem('ems_classes') || '[]');
+      classes = classes.filter(c => assignedClasses.includes(c.id));
+    }
+
     const badge = document.querySelector('[data-page="classes"] .nav-badge');
     if (badge) badge.textContent = classes.length;
     const grid = document.getElementById('classes-grid');
@@ -163,16 +216,18 @@ async function renderClasses() {
 
     grid.innerHTML = classes.map(cls => {
       const s = statsMap[cls.id] || {};
+      const actionsHtml = role === 'staff' ? '' : `
+          <div class="class-card-actions">
+            <button class="btn btn-ghost btn-sm" onclick="openEditClass('${cls.id}')">✏️</button>
+            <button class="btn btn-danger btn-sm" onclick="confirmDeleteClass('${cls.id}','${cls.name}')">🗑️</button>
+          </div>`;
       return `<div class="class-card" id="cls-${cls.id}">
         <div class="class-card-header">
           <div>
             <div class="class-card-title">${cls.name}</div>
             <div class="class-card-meta">${cls.course} · Year ${cls.year} · Section ${cls.section}</div>
           </div>
-          <div class="class-card-actions">
-            <button class="btn btn-ghost btn-sm" onclick="openEditClass('${cls.id}')">✏️</button>
-            <button class="btn btn-danger btn-sm" onclick="confirmDeleteClass('${cls.id}','${cls.name}')">🗑️</button>
-          </div>
+          ${actionsHtml}
         </div>
         <div class="divider" style="margin:10px 0"></div>
         <div class="class-card-stats">
@@ -306,7 +361,15 @@ let studentFilterClass='', studentFilterGender='', studentSearch='';
 
 async function renderStudents() {
   try {
-    const classes = await API.Classes.all();
+    let classes = await API.Classes.all();
+    
+    // Restrict classes for staff
+    const role = sessionStorage.getItem('ems_role') || 'admin';
+    const assignedClasses = JSON.parse(sessionStorage.getItem('ems_classes') || '[]');
+    if (role === 'staff') {
+      classes = classes.filter(c => assignedClasses.includes(c.id));
+    }
+
     const classSelect = document.getElementById('student-filter-class');
     const addClassSel = document.getElementById('student-class-select');
     const opts = '<option value="">All Classes</option>' + classes.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
@@ -319,11 +382,20 @@ async function renderStudents() {
 
 async function renderStudentTable() {
   try {
+    const role = sessionStorage.getItem('ems_role') || 'admin';
+    const assignedClasses = JSON.parse(sessionStorage.getItem('ems_classes') || '[]');
+    
     const filters = {};
     if (studentFilterClass)  filters.classId = studentFilterClass;
     if (studentFilterGender) filters.gender  = studentFilterGender;
     if (studentSearch)       filters.search  = studentSearch;
-    const students = await API.Students.all(filters);
+    
+    let students = await API.Students.all(filters);
+    
+    if (role === 'staff') {
+      students = students.filter(s => assignedClasses.includes(s.class_id));
+    }
+
     const badge = document.querySelector('[data-page="students"] .nav-badge');
     if (badge) badge.textContent = students.length;
     const tbody = document.getElementById('students-tbody');
@@ -339,18 +411,23 @@ async function renderStudentTable() {
         : s.is_absent
           ? `<button class="btn btn-sm" style="background:#10b981;color:white;border:none" onclick="toggleAbsentFromTable('${s.id}', false)" title="Mark as Present">✅ Present</button>`
           : `<button class="btn btn-sm" style="background:#f43f5e;color:white;border:none" onclick="toggleAbsentFromTable('${s.id}', true)" title="Mark as Absent">🚫 Absent</button>`;
+      
+      const actionsHtml = role === 'staff'
+        ? `<div style="display:flex;gap:6px">${activateBtn} ${absentBtn}</div>`
+        : `<div style="display:flex;gap:6px">
+            ${activateBtn}
+            ${absentBtn}
+            <button class="btn btn-ghost btn-sm" onclick="openEditStudent('${s.id}')">✏️</button>
+            <button class="btn btn-danger btn-sm" onclick="confirmDeleteStudent('${s.id}','${s.name.replace(/'/g,"\\'")}')">🗑️</button>
+          </div>`;
+
       return `<tr>
         <td><strong>${s.name}</strong>${s.roll_no?`<br><span class="text-xs text-muted">${s.roll_no}</span>`:''}</td>
         <td>${genderTag}</td>
         <td>${s.class_name||'—'}</td>
         <td>${statusBadge}</td>
         <td>${s.voted_at ? new Date(s.voted_at).toLocaleTimeString() : '—'}</td>
-        <td><div style="display:flex;gap:6px">
-          ${activateBtn}
-          ${absentBtn}
-          <button class="btn btn-ghost btn-sm" onclick="openEditStudent('${s.id}')">✏️</button>
-          <button class="btn btn-danger btn-sm" onclick="confirmDeleteStudent('${s.id}','${s.name.replace(/'/g,"\\'")}')">🗑️</button>
-        </div></td>
+        <td>${actionsHtml}</td>
       </tr>`;
     }).join('');
   } catch(e) { showToast(e.message,'error'); }
@@ -358,8 +435,22 @@ async function renderStudentTable() {
 
 async function activateVoter(studentId, classId, studentName) {
   try {
-    await API.Settings.setActiveVoter({ studentId, classId, name: studentName });
-    showToast(`Voting terminal activated for "${studentName}"! 🗳️`, 'success');
+    const role = sessionStorage.getItem('ems_role') || 'admin';
+    let sessionId = '1';
+    if (role === 'staff') {
+      sessionId = sessionStorage.getItem('ems_session_id') || '1';
+    } else {
+      const choice = prompt('Select Session to activate (1, 2, or 3):', '1');
+      if (choice === null) return;
+      if (!['1','2','3'].includes(choice.trim())) {
+        showToast('Invalid session. Must be 1, 2, or 3.', 'error');
+        return;
+      }
+      sessionId = choice.trim();
+    }
+    
+    await API.Settings.setActiveVoter({ studentId, classId, name: studentName, sessionId });
+    showToast(`Voting terminal for Session ${sessionId} activated for "${studentName}"! 🗳️`, 'success');
   } catch (e) {
     showToast(e.message, 'error');
   }
@@ -520,7 +611,12 @@ async function removeCandidate(candidateId, classId) {
 // ─── Absent ───────────────────────────────────────────────────────
 async function renderAbsent() {
   try {
-    const classes = await API.Classes.all();
+    let classes = await API.Classes.all();
+    const role = sessionStorage.getItem('ems_role') || 'admin';
+    if (role === 'staff') {
+      const assignedClasses = JSON.parse(sessionStorage.getItem('ems_classes') || '[]');
+      classes = classes.filter(c => assignedClasses.includes(c.id));
+    }
     const sel = document.getElementById('absent-class-select');
     sel.innerHTML = '<option value="">— Select a Class —</option>' + classes.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
     document.getElementById('absent-list').innerHTML = '';
@@ -588,13 +684,27 @@ async function renderResults() {
       API.Settings.get()
     ]);
 
+    let targetClasses = classes;
+    const role = sessionStorage.getItem('ems_role') || 'admin';
+    if (role === 'staff') {
+      const assignedClasses = JSON.parse(sessionStorage.getItem('ems_classes') || '[]');
+      targetClasses = classes.filter(c => assignedClasses.includes(c.id));
+    }
+
     // Populate filter
     const fSel = document.getElementById('result-filter-class');
     if (fSel && fSel.options.length <= 1) {
-      fSel.innerHTML = '<option value="">All Classes</option>' + classes.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+      fSel.innerHTML = '<option value="">All Classes</option>' + targetClasses.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
     }
 
-    if (!results.length) { container.innerHTML='<div class="empty-state"><div class="empty-icon">📊</div><p>No results yet</p></div>'; return; }
+    // Filter results matching staff classes
+    let finalResults = results;
+    if (role === 'staff') {
+      const assignedClasses = JSON.parse(sessionStorage.getItem('ems_classes') || '[]');
+      finalResults = results.filter(r => assignedClasses.includes(r.class.id));
+    }
+
+    if (!finalResults.length) { container.innerHTML='<div class="empty-state"><div class="empty-icon">📊</div><p>No results yet</p></div>'; return; }
 
     const isClosed = !settings.election_open;
 
@@ -618,7 +728,7 @@ async function renderResults() {
     // 2. Render Elected Council Grid
     let winnersHtml = '';
     const allWinners = [];
-    results.forEach(({ class: cls, positions }) => {
+    finalResults.forEach(({ class: cls, positions }) => {
       positions.forEach(pos => {
         if (pos.candidates.length > 0 && pos.candidates[0].votes > 0) {
           const topVotes = pos.candidates[0].votes;
@@ -657,7 +767,7 @@ async function renderResults() {
     }
 
     // 3. Render Class-by-Class Results Cards
-    const classesHtml = results.map(({ class: cls, stats, positions }) => {
+    const classesHtml = finalResults.map(({ class: cls, stats, positions }) => {
       const pct = stats.total > 0 ? Math.round((stats.voted / stats.total) * 100) : 0;
       const posHtml = positions.map(pos => {
         const maxV = pos.candidates.length ? pos.candidates[0].votes : 1;
@@ -767,8 +877,139 @@ function toggleSidebar() {
   document.getElementById('sidebar-overlay').classList.toggle('active');
 }
 
+// ─── Staff & Sessions Management (Admin Only) ──────────────────────
+async function loadStaffClassesCheckboxes(selectedClassIds = []) {
+  const container = document.getElementById('staff-classes-checkboxes');
+  try {
+    const classes = await API.Classes.all();
+    container.innerHTML = classes.map(c => `
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer" class="text-sm">
+        <input type="checkbox" name="staff-classes" value="${c.id}" ${selectedClassIds.includes(c.id) ? 'checked' : ''} />
+        <span>${c.name}</span>
+      </label>
+    `).join('');
+  } catch (e) {
+    container.innerHTML = `<span class="text-sm text-red">Failed to load classes: ${e.message}</span>`;
+  }
+}
+
+function toggleAllStaffClasses(select) {
+  document.querySelectorAll('input[name="staff-classes"]').forEach(cb => {
+    cb.checked = select;
+  });
+}
+
+async function renderStaff() {
+  const tbody = document.getElementById('staff-tbody');
+  tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted" style="padding:20px">Loading staff accounts...</td></tr>';
+  try {
+    const [staff, classes] = await Promise.all([
+      API.Staff.all(),
+      API.Classes.all()
+    ]);
+    const classMap = {};
+    classes.forEach(c => classMap[c.id] = c.name);
+    
+    if (!staff.length) {
+      tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted" style="padding:20px">No staff accounts created yet.</td></tr>';
+      return;
+    }
+    
+    tbody.innerHTML = staff.map(member => {
+      const assignedClasses = (member.classes || []).map(cid => classMap[cid] || cid).join(', ') || '—';
+      return `<tr>
+        <td><strong>${member.username}</strong></td>
+        <td><span class="badge badge-indigo">Session ${member.session_id || '—'}</span></td>
+        <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${assignedClasses}">${assignedClasses}</td>
+        <td>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-ghost btn-sm" onclick="openEditStaff('${member.id}')">✏️</button>
+            <button class="btn btn-danger btn-sm" onclick="confirmDeleteStaff('${member.id}','${member.username}')">🗑️</button>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="4" class="text-center text-red" style="padding:20px">Error: ${e.message}</td></tr>`;
+  }
+}
+
+async function openAddStaffModal() {
+  document.getElementById('staff-modal-title').textContent = 'Add Staff Account';
+  document.getElementById('staff-id-field').value = '';
+  document.getElementById('staff-username').value = '';
+  document.getElementById('staff-password').value = '';
+  document.getElementById('staff-pass-hint').textContent = '(required)';
+  document.getElementById('staff-session-select').value = '1';
+  await loadStaffClassesCheckboxes([]);
+  document.getElementById('staff-modal').classList.add('active');
+}
+
+async function openEditStaff(id) {
+  try {
+    const staff = await API.Staff.all();
+    const member = staff.find(x => x.id === id);
+    if (!member) return;
+    document.getElementById('staff-modal-title').textContent = 'Edit Staff Account';
+    document.getElementById('staff-id-field').value = member.id;
+    document.getElementById('staff-username').value = member.username;
+    document.getElementById('staff-password').value = '';
+    document.getElementById('staff-pass-hint').textContent = '(leave blank to keep unchanged)';
+    document.getElementById('staff-session-select').value = member.session_id || '1';
+    await loadStaffClassesCheckboxes(member.classes || []);
+    document.getElementById('staff-modal').classList.add('active');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+function closeStaffModal() {
+  document.getElementById('staff-modal').classList.remove('active');
+}
+
+async function saveStaff() {
+  const id = document.getElementById('staff-id-field').value.trim();
+  const username = document.getElementById('staff-username').value.trim();
+  const password = document.getElementById('staff-password').value.trim();
+  const session_id = document.getElementById('staff-session-select').value;
+  
+  const checkedCbs = document.querySelectorAll('input[name="staff-classes"]:checked');
+  const classes = Array.from(checkedCbs).map(cb => cb.value);
+  
+  if (!username) { showToast('Username is required', 'error'); return; }
+  if (!id && !password) { showToast('Password is required for new accounts', 'error'); return; }
+  
+  const payload = { username, session_id, classes };
+  if (password) payload.password = password;
+  
+  try {
+    if (id) {
+      await API.Staff.update(id, payload);
+      showToast('Staff account updated ✅', 'success');
+    } else {
+      await API.Staff.add(payload);
+      showToast('Staff account created ✅', 'success');
+    }
+    closeStaffModal();
+    renderStaff();
+  } catch (e) {
+    showToast(e.message, 'error');
+  }
+}
+
+function confirmDeleteStaff(id, username) {
+  showConfirm('Delete Staff Account?', `Permanently delete staff account "${username}"?`, async () => {
+    try {
+      await API.Staff.delete(id);
+      showToast('Staff account deleted', 'warning');
+      renderStaff();
+    } catch (e) {
+      showToast(e.message, 'error');
+    }
+  });
+}
+
 // ─── Init ────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('login-username').addEventListener('keydown', e => { if (e.key==='Enter') document.getElementById('login-password').focus(); });
   document.getElementById('login-password').addEventListener('keydown', e => { if (e.key==='Enter') doLogin(); });
   document.getElementById('election-toggle').addEventListener('change', toggleElection);
   document.getElementById('student-filter-class').addEventListener('change',  e => { studentFilterClass  = e.target.value; renderStudentTable(); });

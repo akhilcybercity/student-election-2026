@@ -28,19 +28,23 @@
 <div id="login-screen" style="display:flex">
   <div class="login-card glass-strong">
     <div class="login-logo">🔐</div>
-    <h1 class="login-title gradient-text">Admin Login</h1>
-    <p class="login-sub">Enter your password to access the Election Management Panel</p>
+    <h1 class="login-title gradient-text">System Login</h1>
+    <p class="login-sub">Enter credentials to access the Election Management Panel</p>
     <div class="login-form">
       <div class="form-group">
-        <label class="form-label" for="login-password">Admin Password</label>
+        <label class="form-label" for="login-username">Username <span class="text-muted">(leave blank for Admin)</span></label>
+        <input type="text" id="login-username" class="form-input" placeholder="admin or staff username…" />
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="login-password">Password</label>
         <input type="password" id="login-password" class="form-input" placeholder="Enter password…" autocomplete="current-password" />
       </div>
-      <div id="login-error" class="alert alert-error" style="display:none">❌ Incorrect password</div>
-      <button class="btn btn-gold btn-lg" onclick="doLogin()" style="width:100%;justify-content:center">🔓 Login to Admin Panel</button>
+      <div id="login-error" class="alert alert-error" style="display:none">❌ Incorrect username or password</div>
+      <button class="btn btn-gold btn-lg" onclick="doLogin()" style="width:100%;justify-content:center">🔓 Login to Panel</button>
     </div>
     <div class="divider"></div>
     <div class="text-center"><a href="index.html" class="btn btn-ghost btn-sm">← Back to Home</a></div>
-    <p class="text-center text-xs text-muted" style="margin-top:16px">Default password: <code style="background:var(--white-10);padding:2px 6px;border-radius:4px">admin123</code></p>
+    <p class="text-center text-xs text-muted" style="margin-top:16px">Default admin password: <code style="background:var(--white-10);padding:2px 6px;border-radius:4px">admin123</code></p>
   </div>
 </div>
 
@@ -71,15 +75,16 @@
       <div class="nav-section-title">Manage</div>
       <button class="nav-item" data-page="classes"    onclick="navigateTo('classes')"><span class="nav-icon">🏫</span> Classes <span class="nav-badge">0</span></button>
       <button class="nav-item" data-page="students"   onclick="navigateTo('students')"><span class="nav-icon">👥</span> Students <span class="nav-badge">0</span></button>
-      <button class="nav-item" data-page="positions"  onclick="navigateTo('positions')"><span class="nav-icon">🏅</span> Positions</button>
-      <button class="nav-item" data-page="candidates" onclick="navigateTo('candidates')"><span class="nav-icon">🎯</span> Candidates</button>
+      <button class="nav-item admin-only" data-page="positions"  onclick="navigateTo('positions')"><span class="nav-icon">🏅</span> Positions</button>
+      <button class="nav-item admin-only" data-page="candidates" onclick="navigateTo('candidates')"><span class="nav-icon">🎯</span> Candidates</button>
       <button class="nav-item" data-page="absent"     onclick="navigateTo('absent')"><span class="nav-icon">🚫</span> Mark Absent</button>
+      <button class="nav-item admin-only" data-page="staff"      onclick="navigateTo('staff')"><span class="nav-icon">👤</span> Staff & Sessions</button>
 
       <div class="nav-section-title">Reports</div>
       <button class="nav-item" data-page="results"   onclick="navigateTo('results')"><span class="nav-icon">🏆</span> Results</button>
 
       <div class="nav-section-title">System</div>
-      <button class="nav-item" data-page="settings"  onclick="navigateTo('settings')"><span class="nav-icon">⚙️</span> Settings</button>
+      <button class="nav-item admin-only" data-page="settings"  onclick="navigateTo('settings')"><span class="nav-icon">⚙️</span> Settings</button>
     </nav>
     <div class="sidebar-footer">
       <button class="logout-btn" onclick="doLogout()">🚪 Logout</button>
@@ -135,7 +140,7 @@
     <div id="page-classes" class="page-content page-section" style="display:none">
       <div class="section-header">
         <div class="section-title">All Classes</div>
-        <button class="btn btn-primary" onclick="openAddClass()">+ Add Class</button>
+        <button class="btn btn-primary admin-only" onclick="openAddClass()">+ Add Class</button>
       </div>
       <div id="classes-grid" class="cards-grid"></div>
     </div>
@@ -145,7 +150,7 @@
       <div class="section-header">
         <div class="section-title">All Students</div>
         <div style="display:flex;gap:10px">
-          <button class="btn btn-ghost" onclick="document.getElementById('import-section').classList.toggle('hidden-import')">📊 Import Excel</button>
+          <button class="btn btn-ghost admin-only" onclick="document.getElementById('import-section').classList.toggle('hidden-import')">📊 Import Excel</button>
           <button class="btn btn-primary" onclick="openAddStudent()">+ Add Student</button>
         </div>
       </div>
@@ -242,6 +247,34 @@
       <div id="results-container"></div>
     </div>
 
+    <!-- STAFF & SESSIONS (Admin Only) -->
+    <div id="page-staff" class="page-content page-section" style="display:none">
+      <div class="section-header">
+        <div class="section-title">Staff Accounts & Sessions</div>
+        <button class="btn btn-primary admin-only" onclick="openAddStaffModal()">+ Add Staff Account</button>
+      </div>
+      <div class="alert alert-info" style="margin-bottom:20px">
+        ℹ️ Create Staff accounts, assign them to a voting **Session (1, 2, or 3)**, and delegate specific **Classes** they are allowed to manage.
+      </div>
+      <div class="glass" style="border-radius:var(--radius-lg);overflow:hidden">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Username</th>
+                <th>Assigned Session</th>
+                <th>Assigned Classes</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="staff-tbody">
+              <tr><td colspan="4" class="text-center text-muted" style="padding:20px">Loading staff accounts...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
     <!-- SETTINGS -->
     <div id="page-settings" class="page-content page-section" style="display:none">
       <div class="section-title" style="margin-bottom:24px">Settings</div>
@@ -335,6 +368,49 @@
       <div style="display:flex;gap:10px;justify-content:flex-end">
         <button class="btn btn-ghost" onclick="closePosModal()">Cancel</button>
         <button class="btn btn-primary" onclick="savePosition()">💾 Save Position</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- STAFF MODAL -->
+<div class="modal-overlay" id="staff-modal">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-header">
+      <h3 class="modal-title" id="staff-modal-title">Add Staff Account</h3>
+      <button class="modal-close" onclick="closeStaffModal()">✕</button>
+    </div>
+    <input type="hidden" id="staff-id-field" />
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div class="form-group">
+        <label class="form-label">Username</label>
+        <input type="text" id="staff-username" class="form-input" placeholder="e.g. staff1" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password <span class="text-muted" id="staff-pass-hint">(required for new accounts)</span></label>
+        <input type="password" id="staff-password" class="form-input" placeholder="Enter password…" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Assigned Session</label>
+        <select id="staff-session-select" class="form-select">
+          <option value="1">Session 1</option>
+          <option value="2">Session 2</option>
+          <option value="3">Session 3</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label" style="margin-bottom:8px">Assigned Classes</label>
+        <div style="display:flex;gap:10px;margin-bottom:8px">
+          <button type="button" class="btn btn-ghost btn-sm" onclick="toggleAllStaffClasses(true)">Select All</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="toggleAllStaffClasses(false)">Deselect All</button>
+        </div>
+        <div id="staff-classes-checkboxes" style="max-height:180px;overflow-y:auto;border:1px solid var(--white-10);border-radius:var(--radius-md);padding:10px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <!-- Dynamically populated classes checkboxes -->
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button class="btn btn-ghost" onclick="closeStaffModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveStaff()">💾 Save Account</button>
       </div>
     </div>
   </div>

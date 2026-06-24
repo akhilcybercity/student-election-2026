@@ -48,15 +48,15 @@ const API = {
   Settings: {
     get:              ()      => apiFetch('/api/settings'),
     update:           (data)  => apiFetch('/api/settings', { method:'PUT', body: JSON.stringify(data) }),
-    getActiveVoter:   ()      => apiFetch('/api/settings/active-voter'),
+    getActiveVoter:   (sessionId) => apiFetch(`/api/settings/active-voter${sessionId ? '?sessionId=' + sessionId : ''}`),
     setActiveVoter:   (data)  => apiFetch('/api/settings/active-voter', { method:'POST', body: JSON.stringify(data) }),
-    clearActiveVoter: ()      => apiFetch('/api/settings/active-voter', { method:'DELETE' }),
+    clearActiveVoter: (sessionId) => apiFetch(`/api/settings/active-voter${sessionId ? '?sessionId=' + sessionId : ''}`, { method:'DELETE' }),
   },
 
 
   // Auth
   Auth: {
-    login:          (password)                  => apiFetch('/api/auth/login',           { method:'POST', body: JSON.stringify({ password }) }),
+    login:          (username, password)        => apiFetch('/api/auth/login',           { method:'POST', body: JSON.stringify({ username, password }) }),
     changePassword: (currentPassword, newPassword) => apiFetch('/api/auth/change-password', { method:'POST', body: JSON.stringify({ currentPassword, newPassword }) }),
   },
 
@@ -67,6 +67,14 @@ const API = {
     update: (id, d) => apiFetch(`/api/classes/${id}`, { method:'PUT',    body: JSON.stringify(d) }),
     delete: (id)    => apiFetch(`/api/classes/${id}`, { method:'DELETE'  }),
     stats:  (id)    => apiFetch(`/api/classes/${id}/stats`),
+  },
+
+  // Staff (NEW)
+  Staff: {
+    all:    ()      => apiFetch('/api/staff'),
+    add:    (data)  => apiFetch('/api/staff', { method:'POST', body: JSON.stringify(data) }),
+    update: (id, d) => apiFetch(`/api/staff/${id}`, { method:'PUT',    body: JSON.stringify(d) }),
+    delete: (id)    => apiFetch(`/api/staff/${id}`, { method:'DELETE'  }),
   },
 
   // Positions

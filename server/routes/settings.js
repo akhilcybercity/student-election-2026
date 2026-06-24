@@ -1,12 +1,13 @@
 // routes/settings.js — Election settings with Unified DB
 const router = require('express').Router();
 const db     = require('../db');
-const { requireAdmin } = require('../middleware/auth');
+const { requireAdmin, requireUser } = require('../middleware/auth');
 
-// GET /api/settings/active-voter
+// GET /api/settings/active-voter (polling endpoint for terminals)
 router.get('/active-voter', async (req, res) => {
   try {
-    const val = await db.settings.get('active_voter');
+    const sessionId = req.query.sessionId || req.query.session_id || '1';
+    const val = await db.sessions.get(sessionId);
     const activeVoter = (val && val !== '""' && val !== '') ? JSON.parse(val) : null;
     res.json({ activeVoter });
   } catch (e) {
@@ -14,25 +15,37 @@ router.get('/active-voter', async (req, res) => {
   }
 });
 
-// POST /api/settings/active-voter (require admin to activate terminal)
-router.post('/active-voter', requireAdmin, async (req, res) => {
+// POST /api/settings/active-voter (require user admin/staff to activate terminal)
+router.post('/active-voter', requireUser, async (req, res) => {
   const { studentId, classId, name } = req.body;
+  const sessionId = req.body.sessionId || req.body.session_id || (req.user && req.user.session_id) || '1';
+  
   if (!studentId || !classId || !name) {
     return res.status(400).json({ error: 'Missing studentId, classId, or name' });
   }
+  
+  // If the logged-in user is a Staff member, verify they manage this student's class
+  if (req.user && req.user.role === 'staff') {
+    const assignedClasses = req.user.classes || [];
+    if (!assignedClasses.includes(classId)) {
+      return res.status(403).json({ error: 'Forbidden: You are not assigned to manage this student\'s class.' });
+    }
+  }
+
   const activeVoter = { studentId, classId, name };
   try {
-    await db.settings.update({ active_voter: JSON.stringify(activeVoter) });
+    await db.sessions.updateActiveVoter(sessionId, JSON.stringify(activeVoter));
     res.json({ success: true, activeVoter });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
 
-// DELETE /api/settings/active-voter (clears the active voter queue)
+// DELETE /api/settings/active-voter (clears the active voter queue for a session)
 router.delete('/active-voter', async (req, res) => {
   try {
-    await db.settings.update({ active_voter: '' });
+    const sessionId = req.query.sessionId || req.query.session_id || '1';
+    await db.sessions.updateActiveVoter(sessionId, '');
     res.json({ success: true });
   } catch (e) {
     res.status(500).json({ error: e.message });

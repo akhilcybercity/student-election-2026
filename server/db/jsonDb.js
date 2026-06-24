@@ -37,10 +37,27 @@ function readData() {
   initDb();
   try {
     const content = fs.readFileSync(DB_FILE, 'utf8');
-    return JSON.parse(content);
+    const data = JSON.parse(content);
+    let changed = false;
+    if (!data.sessions) {
+      data.sessions = [
+        { id: '1', name: 'Session 1', active_voter: '' },
+        { id: '2', name: 'Session 2', active_voter: '' },
+        { id: '3', name: 'Session 3', active_voter: '' }
+      ];
+      changed = true;
+    }
+    if (!data.staff) {
+      data.staff = [];
+      changed = true;
+    }
+    if (changed) {
+      writeData(data);
+    }
+    return data;
   } catch (e) {
     console.error('Error reading JSON DB, returning empty defaults', e);
-    return { settings: [], classes: [], positions: [], students: [], candidates: [], votes: [] };
+    return { settings: [], classes: [], positions: [], students: [], candidates: [], votes: [], sessions: [], staff: [] };
   }
 }
 
@@ -525,6 +542,80 @@ const jsonDb = {
         s.has_voted = false;
         s.voted_at = null;
       });
+      writeData(data);
+      return true;
+    }
+  },
+
+  sessions: {
+    get: async (id) => {
+      const data = readData();
+      const s = data.sessions.find(x => x.id === id);
+      return s ? s.active_voter : '';
+    },
+    updateActiveVoter: async (id, activeVoterVal) => {
+      const data = readData();
+      const idx = data.sessions.findIndex(x => x.id === id);
+      if (idx !== -1) {
+        data.sessions[idx].active_voter = activeVoterVal;
+      } else {
+        data.sessions.push({ id, name: `Session ${id}`, active_voter: activeVoterVal });
+      }
+      writeData(data);
+      return true;
+    },
+    all: async () => {
+      const data = readData();
+      return data.sessions || [];
+    }
+  },
+
+  staff: {
+    all: async () => {
+      const data = readData();
+      return data.staff || [];
+    },
+    get: async (id) => {
+      const data = readData();
+      return data.staff.find(x => x.id === id) || null;
+    },
+    getByUsername: async (username) => {
+      const data = readData();
+      return data.staff.find(x => x.username.toLowerCase() === username.toLowerCase()) || null;
+    },
+    add: async (member) => {
+      const data = readData();
+      const newMember = {
+        id: uuidv4(),
+        username: member.username.trim(),
+        password_hash: member.password_hash,
+        session_id: member.session_id,
+        classes: member.classes || []
+      };
+      data.staff = data.staff || [];
+      data.staff.push(newMember);
+      writeData(data);
+      return newMember;
+    },
+    update: async (id, member) => {
+      const data = readData();
+      const idx = data.staff.findIndex(x => x.id === id);
+      if (idx === -1) throw new Error('Staff member not found');
+      
+      const existing = data.staff[idx];
+      data.staff[idx] = {
+        ...existing,
+        username: member.username !== undefined ? member.username.trim() : existing.username,
+        password_hash: member.password_hash !== undefined ? member.password_hash : existing.password_hash,
+        session_id: member.session_id !== undefined ? member.session_id : existing.session_id,
+        classes: member.classes !== undefined ? member.classes : existing.classes
+      };
+      writeData(data);
+      return data.staff[idx];
+    },
+    delete: async (id) => {
+      const data = readData();
+      data.staff = (data.staff || []).filter(x => x.id !== id);
       writeData(data);
       return true;
     }

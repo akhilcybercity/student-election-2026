@@ -93,3 +93,29 @@ CREATE INDEX IF NOT EXISTS idx_students_gender   ON students(gender);
 CREATE INDEX IF NOT EXISTS idx_candidates_class  ON candidates(class_id);
 CREATE INDEX IF NOT EXISTS idx_votes_voter       ON votes(voter_id);
 CREATE INDEX IF NOT EXISTS idx_votes_class       ON votes(class_id);
+
+-- ─── Sessions ────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS sessions (
+  id           VARCHAR(36) PRIMARY KEY,
+  name         VARCHAR(100) NOT NULL,
+  active_voter TEXT, -- JSON payload of the active voter in queue
+  created_at   DATETIME DEFAULT NOW()
+);
+
+-- Prepopulate the 3 default sessions
+INSERT IGNORE INTO sessions (id, name, active_voter) VALUES
+  ('1', 'Session 1', ''),
+  ('2', 'Session 2', ''),
+  ('3', 'Session 3', '');
+
+-- ─── Staff Accounts ──────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS staff (
+  id            VARCHAR(36) PRIMARY KEY,
+  username      VARCHAR(50) UNIQUE NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  session_id    VARCHAR(36),
+  classes       TEXT, -- JSON array of assigned class IDs (e.g. ["class-id-1", "class-id-2"])
+  created_at    DATETIME DEFAULT NOW(),
+  FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE SET NULL
+);
+

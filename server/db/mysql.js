@@ -469,6 +469,105 @@ const mysqlDb = {
       await p.query('UPDATE students SET has_voted=0, voted_at=NULL');
       return true;
     }
+  },
+
+  sessions: {
+    get: async (id) => {
+      const p = getPool();
+      const [[row]] = await p.query("SELECT active_voter FROM sessions WHERE id = ?", [id]);
+      return row ? row.active_voter : '';
+    },
+    updateActiveVoter: async (id, activeVoterVal) => {
+      const p = getPool();
+      await p.query(
+        "INSERT INTO sessions (id, name, active_voter) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE active_voter = ?",
+        [id, `Session ${id}`, activeVoterVal, activeVoterVal]
+      );
+      return true;
+    },
+    all: async () => {
+      const p = getPool();
+      const [rows] = await p.query("SELECT * FROM sessions ORDER BY id");
+      return rows;
+    }
+  },
+
+  staff: {
+    all: async () => {
+      const p = getPool();
+      const [rows] = await p.query("SELECT * FROM staff ORDER BY username");
+      return rows.map(r => ({
+        ...r,
+        classes: r.classes ? JSON.parse(r.classes) : []
+      }));
+    },
+    get: async (id) => {
+      const p = getPool();
+      const [[row]] = await p.query("SELECT * FROM staff WHERE id = ?", [id]);
+      if (!row) return null;
+      return {
+        ...row,
+        classes: row.classes ? JSON.parse(row.classes) : []
+      };
+    },
+    getByUsername: async (username) => {
+      const p = getPool();
+      const [[row]] = await p.query("SELECT * FROM staff WHERE LOWER(username) = LOWER(?)", [username]);
+      if (!row) return null;
+      return {
+        ...row,
+        classes: row.classes ? JSON.parse(row.classes) : []
+      };
+    },
+    add: async (member) => {
+      const p = getPool();
+      const id = uuidv4();
+      const username = member.username.trim();
+      const password_hash = member.password_hash;
+      const session_id = member.session_id || null;
+      const classesStr = JSON.stringify(member.classes || []);
+
+      await p.query(
+        "INSERT INTO staff (id, username, password_hash, session_id, classes) VALUES (?, ?, ?, ?, ?)",
+        [id, username, password_hash, session_id, classesStr]
+      );
+
+      return {
+        id,
+        username,
+        password_hash,
+        session_id,
+        classes: member.classes || []
+      };
+    },
+    update: async (id, member) => {
+      const p = getPool();
+      const [[existing]] = await p.query("SELECT * FROM staff WHERE id = ?", [id]);
+      if (!existing) throw new Error('Staff member not found');
+
+      const username = member.username !== undefined ? member.username.trim() : existing.username;
+      const password_hash = member.password_hash !== undefined ? member.password_hash : existing.password_hash;
+      const session_id = member.session_id !== undefined ? member.session_id : existing.session_id;
+      const classesStr = member.classes !== undefined ? JSON.stringify(member.classes) : existing.classes;
+
+      await p.query(
+        "UPDATE staff SET username = ?, password_hash = ?, session_id = ?, classes = ? WHERE id = ?",
+        [username, password_hash, session_id, classesStr, id]
+      );
+
+      return {
+        id,
+        username,
+        password_hash,
+        session_id,
+        classes: classesStr ? JSON.parse(classesStr) : []
+      };
+    },
+    delete: async (id) => {
+      const p = getPool();
+      await p.query("DELETE FROM staff WHERE id = ?", [id]);
+      return true;
+    }
   }
 };
 

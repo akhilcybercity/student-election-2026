@@ -15,6 +15,10 @@
     {
       "key": "admin_password",
       "value": "$2a$10$vJYO.9/BCeNEM3tzLu4qmufg.0x0Qju4yzrEZzpZ6GeZZ9yPlFEJi"
+    },
+    {
+      "key": "active_voter",
+      "value": ""
     }
   ],
   "classes": [

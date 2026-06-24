@@ -3,7 +3,7 @@ const router  = require('express').Router();
 const db      = require('../db');
 const multer  = require('multer');
 const XLSX    = require('xlsx');
-const { requireAdmin } = require('../middleware/auth');
+const { requireAdmin, requireUser } = require('../middleware/auth');
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
@@ -30,11 +30,19 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST /api/students — add one student
-router.post('/', requireAdmin, async (req, res) => {
+router.post('/', requireUser, async (req, res) => {
   try {
     const { name, roll_no, gender, class_id } = req.body;
     if (!name || !gender || !class_id) return res.status(400).json({ error: 'name, gender, class_id required' });
     if (!['Boy','Girl'].includes(gender)) return res.status(400).json({ error: 'gender must be Boy or Girl' });
+
+    // Restrict staff to assigned classes
+    if (req.user && req.user.role === 'staff') {
+      const assignedClasses = req.user.classes || [];
+      if (!assignedClasses.includes(class_id)) {
+        return res.status(403).json({ error: 'Forbidden: You cannot add a student to an unassigned class.' });
+      }
+    }
 
     const s = await db.students.add({ name, roll_no, gender, class_id });
     res.status(201).json(s);
@@ -65,9 +73,20 @@ router.delete('/:id', requireAdmin, async (req, res) => {
 });
 
 // PATCH /api/students/:id/absent
-router.patch('/:id/absent', requireAdmin, async (req, res) => {
+router.patch('/:id/absent', requireUser, async (req, res) => {
   try {
     const { is_absent } = req.body;
+
+    // Restrict staff to assigned classes
+    if (req.user && req.user.role === 'staff') {
+      const student = await db.students.get(req.params.id);
+      if (!student) return res.status(404).json({ error: 'Student not found' });
+      const assignedClasses = req.user.classes || [];
+      if (!assignedClasses.includes(student.class_id)) {
+        return res.status(403).json({ error: 'Forbidden: You cannot manage attendance for this student.' });
+      }
+    }
+
     await db.students.markAbsent(req.params.id, is_absent);
     res.json({ success: true });
   } catch (e) {

@@ -43,20 +43,51 @@ async function initLookup() {
     // Always hide home/back buttons on the voting terminal for security
     document.querySelectorAll('.back-btn').forEach(btn => btn.style.display = 'none');
     
-    // Start waiting loop for admin activation
+    // Check URL parameters for session
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlSession = urlParams.get('sessionId') || urlParams.get('session_id');
+    if (urlSession) {
+      localStorage.setItem('ems_booth_session_id', urlSession);
+    }
+
+    // Start waiting loop or prompt for session
     startTerminalPolling();
   } catch(e) {
     showErrorScreen('Connection Error', 'Cannot reach the server. Please check your internet connection and try again.');
   }
 }
 
+function setBoothSession(sessionId) {
+  localStorage.setItem('ems_booth_session_id', sessionId);
+  startTerminalPolling();
+}
+
+function clearBoothSession() {
+  if (terminalPollInterval) clearInterval(terminalPollInterval);
+  terminalPollInterval = null;
+  localStorage.removeItem('ems_booth_session_id');
+  document.getElementById('session-wait-card').style.display = 'none';
+  document.getElementById('session-select-card').style.display = 'block';
+}
 
 function startTerminalPolling() {
   showScreen('terminal-wait');
   if (terminalPollInterval) clearInterval(terminalPollInterval);
+  
+  const sessionId = localStorage.getItem('ems_booth_session_id');
+  if (!sessionId) {
+    document.getElementById('session-wait-card').style.display = 'none';
+    document.getElementById('session-select-card').style.display = 'block';
+    return;
+  }
+
+  document.getElementById('session-select-card').style.display = 'none';
+  document.getElementById('session-wait-card').style.display = 'block';
+  document.getElementById('wait-session-label').textContent = `🔄 Session ${sessionId}: Waiting for activation...`;
+
   terminalPollInterval = setInterval(async () => {
     try {
-      const res = await API.Settings.getActiveVoter();
+      const res = await API.Settings.getActiveVoter(sessionId);
       if (res && res.activeVoter) {
         clearInterval(terminalPollInterval);
         terminalPollInterval = null;
@@ -70,10 +101,11 @@ function startTerminalPolling() {
 
 async function loadActiveVoter(voter) {
   try {
+    const sessionId = localStorage.getItem('ems_booth_session_id') || '1';
     const student = await API.Students.get(voter.studentId);
     if (student.has_voted) {
       // Voter already voted, clear selection on server and resume polling
-      await API.Settings.clearActiveVoter();
+      await API.Settings.clearActiveVoter(sessionId);
       startTerminalPolling();
       return;
     }
@@ -283,7 +315,8 @@ async function submitVote() {
 
     if (isTerminalMode) {
       try {
-        await API.Settings.clearActiveVoter();
+        const sessionId = localStorage.getItem('ems_booth_session_id') || '1';
+        await API.Settings.clearActiveVoter(sessionId);
       } catch (err) {
         console.error('Failed to clear active voter on server:', err);
       }
