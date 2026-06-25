@@ -16,7 +16,7 @@ function showScreen(name) {
 }
 
 function updateStepDots(step) {
-  const steps = ['lookup','ballot','confirm','success'];
+  const steps = ['lookup','ballot','success'];
   const idx = steps.indexOf(step);
   document.querySelectorAll('.step-dot').forEach((dot,i) => {
     dot.classList.remove('active','done');
@@ -272,8 +272,8 @@ async function proceedToConfirm() {
     showToast(`Please select a candidate for all ${total} posts (${total-selected} remaining)`, 'error');
     return;
   }
-  await buildConfirmScreen();
-  showScreen('confirm');
+  // Skip review screen — submit directly to save time
+  await submitVote();
 }
 
 async function buildConfirmScreen() {

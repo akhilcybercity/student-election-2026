@@ -881,13 +881,28 @@ function toggleSidebar() {
 async function loadStaffClassesCheckboxes(selectedClassIds = []) {
   const container = document.getElementById('staff-classes-checkboxes');
   try {
-    const classes = await API.Classes.all();
-    container.innerHTML = classes.map(c => `
-      <label style="display:flex;align-items:center;gap:6px;cursor:pointer" class="text-sm">
-        <input type="checkbox" name="staff-classes" value="${c.id}" ${selectedClassIds.includes(c.id) ? 'checked' : ''} />
-        <span>${c.name}</span>
-      </label>
-    `).join('');
+    const [classes, allStaff] = await Promise.all([API.Classes.all(), API.Staff.all()]);
+
+    // Build a map: classId -> staff member who owns it (excluding the staff being edited)
+    const currentStaffId = document.getElementById('staff-id-field').value.trim();
+    const takenByMap = {};
+    allStaff.forEach(member => {
+      if (member.id === currentStaffId) return;
+      (member.classes || []).forEach(cid => { takenByMap[cid] = member.username; });
+    });
+
+    container.innerHTML = classes.map(c => {
+      const isTaken   = !!takenByMap[c.id];
+      const isChecked = selectedClassIds.includes(c.id);
+      const badge     = isTaken
+        ? `<span style="font-size:.68rem;padding:2px 8px;border-radius:20px;background:rgba(251,113,133,0.18);color:#fb7185;font-weight:600;white-space:nowrap">🔒 ${takenByMap[c.id]}</span>`
+        : '';
+      return `<label style="display:flex;align-items:center;gap:8px;cursor:${isTaken?'not-allowed':'pointer'};padding:5px 8px;border-radius:6px;background:${isTaken?'rgba(251,113,133,0.07)':'transparent'};opacity:${isTaken?'0.7':'1'}" class="text-sm" title="${isTaken?'Already assigned to '+takenByMap[c.id]:''}">
+        <input type="checkbox" name="staff-classes" value="${c.id}" ${isChecked?'checked':''} ${isTaken?'disabled':''} style="accent-color:var(--indigo-light)" />
+        <span style="flex:1">${c.name}</span>
+        ${badge}
+      </label>`;
+    }).join('');
   } catch (e) {
     container.innerHTML = `<span class="text-sm text-red">Failed to load classes: ${e.message}</span>`;
   }
