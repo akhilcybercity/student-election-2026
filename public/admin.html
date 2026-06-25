@@ -234,14 +234,16 @@
       </div>
     </div>
 
-    <!-- RESULTS -->
     <div id="page-results" class="page-content page-section" style="display:none">
       <div class="section-header">
-        <div class="section-title">Election Results</div>
+        <div>
+          <div class="section-title">Election Results</div>
+          <div id="results-last-updated" style="font-size:.75rem;color:var(--white-50);margin-top:2px">Not yet loaded</div>
+        </div>
         <div class="section-actions">
-          <select class="form-select" id="result-filter-class" onchange="renderResults()" style="width:auto"><option value="">All Classes</option></select>
-          <button class="btn btn-primary" onclick="renderResults()">🔄 Refresh</button>
-          <button class="btn btn-gold" onclick="exportResults()">📥 Export</button>
+          <select class="form-select" id="result-filter-class" onchange="renderResults(true)" style="width:auto"><option value="">All Classes</option></select>
+          <button class="btn btn-primary" onclick="renderResults(true)">&#x1F504; Refresh Now</button>
+          <button class="btn btn-gold" onclick="exportResults()">&#x1F4E5; Export</button>
         </div>
       </div>
       <div id="results-container"></div>

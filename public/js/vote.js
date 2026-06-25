@@ -327,14 +327,14 @@ async function submitVote() {
         // Customize success page for terminal mode
         const successSub = document.querySelector('.success-sub');
         if (successSub) {
-          successSub.innerHTML = `Your vote has been successfully recorded.<br><br><span style="color:var(--gold);font-weight:700">Ready for next voter! Reloading in 3 seconds...</span>`;
+          successSub.innerHTML = `Your vote has been successfully recorded.<br><br><span style="color:var(--gold);font-weight:700">✅ Ready for next voter! Returning to booth in 3 seconds...</span>`;
         }
         const act = document.getElementById('success-actions');
         if (act) act.style.display = 'none';
 
-        // Auto reload after 3 seconds to clear all state cleanly
+        // Reset terminal after 3 seconds WITHOUT page reload so session stays locked
         setTimeout(() => {
-          window.location.reload();
+          resetTerminal();
         }, 3000);
       }
       showScreen('success');

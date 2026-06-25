@@ -673,9 +673,14 @@ async function toggleAbsent(studentId, isAbsent) {
 }
 
 // ─── Results ──────────────────────────────────────────────────────
-async function renderResults() {
+let _resultsRendering = false;
+async function renderResults(manual = false) {
+  if (_resultsRendering) return; // prevent overlapping renders
+  _resultsRendering = true;
   const container = document.getElementById('results-container');
-  container.innerHTML = '<div class="text-center text-muted" style="padding:40px">⏳ Loading results…</div>';
+  if (manual || !container.innerHTML || container.innerHTML.includes('Loading results')) {
+    container.innerHTML = '<div class="text-center text-muted" style="padding:40px">⏳ Loading results…</div>';
+  }
   try {
     const classId = document.getElementById('result-filter-class')?.value || '';
     const [results, classes, settings] = await Promise.all([
@@ -808,7 +813,11 @@ async function renderResults() {
     }).join('');
 
     container.innerHTML = bannerHtml + winnersHtml + classesHtml;
+    // Update last-refreshed timestamp
+    const ts = document.getElementById('results-last-updated');
+    if (ts) ts.textContent = '🕐 ' + new Date().toLocaleTimeString('en-IN', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
   } catch(e) { container.innerHTML=`<div class="alert alert-error">❌ ${e.message}</div>`; }
+  finally { _resultsRendering = false; }
 }
 
 async function exportResults() {
@@ -1045,8 +1054,8 @@ document.addEventListener('DOMContentLoaded', () => {
       renderDashboard();
     } else if (currentPage === 'results') {
       const modalActive = document.querySelector('#confirm-overlay.active');
-      if (!modalActive) {
-        renderResults();
+      if (!modalActive && !_resultsRendering) {
+        renderResults(false); // silent background refresh
       }
     }
   }, 60000);
