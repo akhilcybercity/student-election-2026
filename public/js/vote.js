@@ -118,9 +118,16 @@ async function loadActiveVoter(voter) {
     voteState.cls = cls;
     voteState.selections = {};
 
+    // ✅ Always reset submit button before loading next voter's ballot
+    const submitBtn = document.getElementById('submit-vote-btn');
+    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = '✅ Submit Vote'; }
+
     showToast(`Identity verified: Welcome, ${student.name}!`, 'success');
     await buildBallot();
     showScreen('ballot');
+    // Scroll ballot area to top for fresh start
+    const ballotWrapper = document.querySelector('.ballot-wrapper');
+    if (ballotWrapper) ballotWrapper.scrollTop = 0;
   } catch (e) {
     console.error('Error loading active voter details:', e);
     startTerminalPolling();
@@ -197,6 +204,9 @@ async function buildBallot() {
   const { classId, student, cls } = voteState;
   document.getElementById('voter-name').textContent = student.name;
   document.getElementById('voter-meta').textContent = `${cls.name} · ${cls.course} · ${student.gender}`;
+  // Reset submit button every time a new ballot is built
+  const submitBtn = document.getElementById('submit-vote-btn');
+  if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = '\u2705 Submit Vote'; }
   const container = document.getElementById('ballot-posts');
   container.innerHTML = '<div class="text-center text-muted" style="padding:20px">⏳ Loading ballot…</div>';
   try {
@@ -255,6 +265,26 @@ function selectCandidate(posId, candidateId) {
     if (opt) opt.classList.add('selected');
   }
   updateBallotSummary();
+
+  // Auto-scroll to the next unanswered post section
+  const positions = window._ballotPositions || [];
+  const currentIdx = positions.findIndex(p => String(p.id) === String(posId));
+  if (currentIdx >= 0 && currentIdx < positions.length - 1) {
+    // Scroll to next section
+    setTimeout(() => {
+      const sections = document.querySelectorAll('.post-section');
+      const nextSection = sections[currentIdx + 1];
+      if (nextSection) {
+        nextSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 250);
+  } else if (currentIdx === positions.length - 1) {
+    // Last position selected — scroll to Submit button
+    setTimeout(() => {
+      const footer = document.querySelector('.ballot-footer');
+      if (footer) footer.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }, 250);
+  }
 }
 
 function updateBallotSummary() {
