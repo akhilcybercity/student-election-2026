@@ -6,8 +6,25 @@ const path    = require('path');
 
 const app = express();
 
-// ─── Middleware ───────────────────────────────────────────────────
-app.use(cors());
+// ─── CORS — allow both Render and Railway deployments ────────────
+const allowedOrigins = [
+  process.env.RENDER_URL,    // e.g. https://your-app.onrender.com
+  process.env.RAILWAY_URL,   // e.g. https://your-app.up.railway.app
+  'http://localhost:3000',
+  'http://localhost:5000',
+].filter(Boolean);
+
+app.use(cors({
+  origin: (origin, cb) => {
+    // Allow requests with no origin (mobile apps, curl, Postman) or matching origins
+    if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+      cb(null, true);
+    } else {
+      cb(new Error('CORS: origin not allowed — ' + origin));
+    }
+  },
+  credentials: true
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -40,14 +57,21 @@ app.use((err, req, res, next) => {
 
 // ─── Start ────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
+const DEPLOYMENT = process.env.RAILWAY_ENVIRONMENT
+  ? `Railway (${process.env.RAILWAY_ENVIRONMENT})`
+  : process.env.RENDER
+  ? 'Render'
+  : 'Local';
+
 app.listen(PORT, () => {
   console.log('');
   console.log('═══════════════════════════════════════════════');
   console.log('  🗳️  Election Management System — Server');
   console.log('═══════════════════════════════════════════════');
   console.log(`  ✅ Running at: http://localhost:${PORT}`);
+  console.log(`  🌐 Platform:   ${DEPLOYMENT}`);
   console.log(`  📁 Static:     /public`);
-  console.log(`  🔌 DB Host:    ${process.env.DB_HOST || 'localhost'}`);
+  console.log(`  🔌 DB Host:    ${process.env.DB_HOST || 'localhost (JSON mode)'}`);
   console.log('  Press Ctrl+C to stop');
   console.log('═══════════════════════════════════════════════');
   console.log('');

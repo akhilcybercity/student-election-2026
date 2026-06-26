@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>System Status — Election Portal</title>
+  <meta name="description" content="Real-time health status of all Election Portal deployments. Switch to the fastest active server." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #0a0c14;
+      --surface:     #111827;
+      --surface2:    #1a2235;
+      --border:      rgba(255,255,255,0.07);
+      --gold:        #f59e0b;
+      --gold-glow:   rgba(245,158,11,0.20);
+      --indigo:      #6366f1;
+      --indigo-glow: rgba(99,102,241,0.25);
+      --green:       #10b981;
+      --green-glow:  rgba(16,185,129,0.20);
+      --red:         #ef4444;
+      --red-glow:    rgba(239,68,68,0.20);
+      --amber:       #f59e0b;
+      --text:        #f1f5f9;
+      --muted:       #94a3b8;
+      --radius:      16px;
+      --radius-lg:   24px;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 40px 20px 80px;
+      background-image:
+        radial-gradient(ellipse 80% 50% at 20% 10%, rgba(99,102,241,0.08) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 80% 80%, rgba(245,158,11,0.06) 0%, transparent 50%);
+    }
+
+    /* ── Header ── */
+    .header {
+      text-align: center;
+      margin-bottom: 48px;
+    }
+    .header-emblem {
+      width: 72px; height: 72px;
+      background: linear-gradient(135deg, #1e1b4b, #312e81);
+      border: 2px solid var(--gold);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 2rem;
+      margin: 0 auto 24px;
+      box-shadow: 0 0 40px var(--gold-glow), 0 0 80px var(--indigo-glow);
+      animation: float 4s ease-in-out infinite;
+    }
+    @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+    .header h1 {
+      font-size: clamp(1.6rem, 4vw, 2.4rem);
+      font-weight: 800;
+      background: linear-gradient(135deg, #fff 0%, #a5b4fc 60%, var(--gold) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 8px;
+    }
+    .header p {
+      color: var(--muted);
+      font-size: 0.925rem;
+      font-weight: 400;
+    }
+
+    /* ── Last checked ── */
+    #last-checked {
+      font-size: 0.75rem;
+      color: var(--muted);
+      text-align: center;
+      margin-bottom: 32px;
+      letter-spacing: 0.04em;
+    }
+
+    /* ── Server Cards ── */
+    .servers {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      width: 100%;
+      max-width: 760px;
+      margin-bottom: 36px;
+    }
+
+    .server-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 28px 24px;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.25s, box-shadow 0.25s, border-color 0.25s;
+    }
+    .server-card::before {
+      content: '';
+      position: absolute; inset: 0;
+      border-radius: inherit;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .server-card.online::before  { background: linear-gradient(135deg, rgba(16,185,129,.06), transparent); }
+    .server-card.offline::before { background: linear-gradient(135deg, rgba(239,68,68,.06), transparent); }
+    .server-card.checking::before{ background: linear-gradient(135deg, rgba(245,158,11,.06), transparent); }
+    .server-card:hover { transform: translateY(-4px); }
+    .server-card.online:hover  { border-color: rgba(16,185,129,0.4); box-shadow: 0 20px 50px rgba(16,185,129,0.12); }
+    .server-card.offline:hover { border-color: rgba(239,68,68,0.4);  box-shadow: 0 20px 50px rgba(239,68,68,0.12); }
+
+    .card-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .card-icon {
+      width: 44px; height: 44px;
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.4rem;
+    }
+    .render-icon { background: rgba(99,102,241,0.15); }
+    .railway-icon { background: rgba(245,158,11,0.12); }
+
+    .status-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 5px 12px;
+      border-radius: 100px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .badge-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+    }
+    .status-online  .status-badge { background: rgba(16,185,129,.15); border: 1px solid rgba(16,185,129,.3); color: #34d399; }
+    .status-online  .badge-dot    { background: #34d399; animation: pulse 1.8s infinite; }
+    .status-offline .status-badge { background: rgba(239,68,68,.15);  border: 1px solid rgba(239,68,68,.3);  color: #f87171; }
+    .status-offline .badge-dot    { background: #f87171; }
+    .status-checking .status-badge{ background: rgba(245,158,11,.12); border: 1px solid rgba(245,158,11,.3); color: var(--amber); }
+    .status-checking .badge-dot   { background: var(--amber); animation: blink 0.7s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+    .card-name {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .card-url {
+      font-size: 0.78rem;
+      color: var(--muted);
+      word-break: break-all;
+      margin-bottom: 18px;
+    }
+
+    .card-metrics {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .metric {
+      background: var(--surface2);
+      border-radius: 10px;
+      padding: 12px 14px;
+    }
+    .metric-label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
+    .metric-value { font-size: 1.1rem; font-weight: 700; }
+    .metric-online  .metric-value { color: #34d399; }
+    .metric-offline .metric-value { color: #f87171; }
+    .metric-checking .metric-value { color: var(--amber); }
+
+    .btn-open {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      padding: 12px 20px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+    .btn-open:hover {
+      background: rgba(255,255,255,0.06);
+      border-color: rgba(255,255,255,0.15);
+    }
+    .btn-open.primary {
+      background: linear-gradient(135deg, #4f46e5, #6366f1);
+      border-color: transparent;
+      box-shadow: 0 4px 20px rgba(99,102,241,0.35);
+    }
+    .btn-open.primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(99,102,241,0.45);
+    }
+    .btn-open:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+    .fastest-badge {
+      position: absolute;
+      top: -1px; right: 20px;
+      background: linear-gradient(90deg, #f59e0b, #fbbf24);
+      color: #000;
+      font-size: 0.65rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      padding: 4px 12px;
+      border-radius: 0 0 10px 10px;
+    }
+
+    /* ── Refresh Button ── */
+    .refresh-wrap {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    .btn-refresh {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 24px;
+      border-radius: 100px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--muted);
+      font-family: inherit;
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-refresh:hover { color: var(--text); border-color: rgba(255,255,255,0.15); }
+    .btn-refresh.spinning svg { animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Info Box ── */
+    .info-box {
+      max-width: 760px;
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+    }
+    .info-icon { font-size: 1.2rem; margin-top: 1px; flex-shrink: 0; }
+    .info-text { font-size: 0.85rem; color: var(--muted); line-height: 1.6; }
+    .info-text strong { color: var(--text); }
+
+    /* ── Auto-refresh countdown ── */
+    #countdown {
+      display: inline;
+      font-variant-numeric: tabular-nums;
+      color: var(--indigo);
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="header-emblem">🗳️</div>
+    <h1>Deployment Status</h1>
+    <p>Election Portal — Real-time server health monitor</p>
+  </div>
+
+  <div id="last-checked">Checking servers…</div>
+
+  <div class="servers" id="servers-grid">
+
+    <!-- Render Card -->
+    <div class="server-card checking status-checking" id="card-render">
+      <div class="card-top">
+        <div class="card-icon render-icon">🎨</div>
+        <div class="status-badge">
+          <span class="badge-dot"></span>
+          <span class="badge-text">Checking…</span>
+        </div>
+      </div>
+      <div class="card-name">Render (Primary)</div>
+      <div class="card-url" id="url-render">—</div>
+      <div class="card-metrics">
+        <div class="metric metric-checking" id="metric-render-ping">
+          <div class="metric-label">Response</div>
+          <div class="metric-value">—</div>
+        </div>
+        <div class="metric metric-checking" id="metric-render-status">
+          <div class="metric-label">Status</div>
+          <div class="metric-value">—</div>
+        </div>
+      </div>
+      <a class="btn-open" id="btn-render" href="#" target="_blank" rel="noopener">
+        <span>Open Render</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+      </a>
+    </div>
+
+    <!-- Railway Card -->
+    <div class="server-card checking status-checking" id="card-railway">
+      <div class="card-top">
+        <div class="card-icon railway-icon">🚂</div>
+        <div class="status-badge">
+          <span class="badge-dot"></span>
+          <span class="badge-text">Checking…</span>
+        </div>
+      </div>
+      <div class="card-name">Railway (Backup)</div>
+      <div class="card-url" id="url-railway">—</div>
+      <div class="card-metrics">
+        <div class="metric metric-checking" id="metric-railway-ping">
+          <div class="metric-label">Response</div>
+          <div class="metric-value">—</div>
+        </div>
+        <div class="metric metric-checking" id="metric-railway-status">
+          <div class="metric-label">Status</div>
+          <div class="metric-value">—</div>
+        </div>
+      </div>
+      <a class="btn-open" id="btn-railway" href="#" target="_blank" rel="noopener">
+        <span>Open Railway</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+      </a>
+    </div>
+
+  </div>
+
+  <div class="refresh-wrap">
+    <button class="btn-refresh" id="btn-refresh" onclick="checkAll()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <polyline points="23 4 23 10 17 10"/>
+        <path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/>
+      </svg>
+      Refresh Now
+    </button>
+  </div>
+
+  <div class="info-box">
+    <span class="info-icon">ℹ️</span>
+    <div class="info-text">
+      <strong>Both deployments share the same TiDB Cloud database.</strong>
+      All data is automatically synchronized in real time — votes, students, and settings are identical on both servers.
+      Use this page to switch to the faster or available server. Auto-refreshes every
+      <span id="countdown">30</span>s.
+    </div>
+  </div>
+
+  <script>
+    // ── CONFIG: Update these URLs after deployment ──────────────────────────
+    const SERVERS = {
+      render: {
+        name:    'Render (Primary)',
+        url:     '', // e.g. https://your-app.onrender.com
+        cardId:  'card-render',
+        urlId:   'url-render',
+        btnId:   'btn-render',
+        pingId:  'metric-render-ping',
+        statId:  'metric-render-status',
+      },
+      railway: {
+        name:    'Railway (Backup)',
+        url:     '', // e.g. https://your-app.up.railway.app
+        cardId:  'card-railway',
+        urlId:   'url-railway',
+        btnId:   'btn-railway',
+        pingId:  'metric-railway-ping',
+        statId:  'metric-railway-status',
+      }
+    };
+    // ───────────────────────────────────────────────────────────────────────
+
+    // Try to auto-detect the current host as one of the servers
+    (function autoDetect() {
+      const host = window.location.origin;
+      if (!SERVERS.render.url)   SERVERS.render.url   = host;
+      if (!SERVERS.railway.url)  SERVERS.railway.url  = '';
+    })();
+
+    const results = { render: null, railway: null };
+
+    async function pingServer(key) {
+      const srv = SERVERS[key];
+      if (!srv.url) {
+        return { ok: false, ms: null, msg: 'URL not configured' };
+      }
+      const start = Date.now();
+      try {
+        const res = await fetch(srv.url + '/api/health', {
+          signal: AbortSignal.timeout(8000),
+          cache: 'no-store'
+        });
+        const ms = Date.now() - start;
+        if (res.ok) {
+          return { ok: true, ms, msg: 'Online' };
+        } else {
+          return { ok: false, ms, msg: `HTTP ${res.status}` };
+        }
+      } catch (e) {
+        return { ok: false, ms: null, msg: 'Unreachable' };
+      }
+    }
+
+    function setState(key, state, ms, msg) {
+      const srv = SERVERS[key];
+      const card   = document.getElementById(srv.cardId);
+      const badge  = card.querySelector('.status-badge');
+      const btext  = badge.querySelector('.badge-text');
+      const pingEl = document.getElementById(srv.pingId);
+      const statEl = document.getElementById(srv.statId);
+      const btn    = document.getElementById(srv.btnId);
+      const urlEl  = document.getElementById(srv.urlId);
+
+      // URL display
+      if (srv.url) {
+        urlEl.textContent = srv.url.replace('https://', '');
+      } else {
+        urlEl.textContent = 'Not configured — see status.html';
+      }
+
+      // Remove all state classes
+      card.classList.remove('online', 'offline', 'checking',
+                            'status-online', 'status-offline', 'status-checking');
+      pingEl.classList.remove('metric-online', 'metric-offline', 'metric-checking');
+      statEl.classList.remove('metric-online', 'metric-offline', 'metric-checking');
+
+      if (state === 'online') {
+        card.classList.add('online', 'status-online');
+        btext.textContent = 'Online';
+        pingEl.classList.add('metric-online');
+        statEl.classList.add('metric-online');
+        pingEl.querySelector('.metric-value').textContent = ms + ' ms';
+        statEl.querySelector('.metric-value').textContent = '✓ OK';
+        btn.removeAttribute('disabled');
+        if (srv.url) btn.href = srv.url;
+      } else if (state === 'offline') {
+        card.classList.add('offline', 'status-offline');
+        btext.textContent = 'Offline';
+        pingEl.classList.add('metric-offline');
+        statEl.classList.add('metric-offline');
+        pingEl.querySelector('.metric-value').textContent = ms ? ms + ' ms' : '—';
+        statEl.querySelector('.metric-value').textContent = msg || 'Down';
+        btn.setAttribute('disabled', true);
+      } else {
+        card.classList.add('checking', 'status-checking');
+        btext.textContent = 'Checking…';
+        pingEl.classList.add('metric-checking');
+        statEl.classList.add('metric-checking');
+        pingEl.querySelector('.metric-value').textContent = '…';
+        statEl.querySelector('.metric-value').textContent = '…';
+      }
+    }
+
+    function markFastest() {
+      // Remove existing fastest badges
+      document.querySelectorAll('.fastest-badge').forEach(el => el.remove());
+      document.querySelectorAll('.btn-open.primary').forEach(el => {
+        el.classList.remove('primary');
+      });
+
+      const onlineServers = Object.keys(results).filter(k => results[k] && results[k].ok);
+      if (onlineServers.length === 0) return;
+
+      const fastest = onlineServers.reduce((a, b) =>
+        (results[a].ms <= results[b].ms) ? a : b
+      );
+
+      const srv = SERVERS[fastest];
+      const card = document.getElementById(srv.cardId);
+      const btn  = document.getElementById(srv.btnId);
+
+      const badge = document.createElement('div');
+      badge.className = 'fastest-badge';
+      badge.textContent = '⚡ Fastest';
+      card.appendChild(badge);
+      btn.classList.add('primary');
+    }
+
+    async function checkAll() {
+      const btn = document.getElementById('btn-refresh');
+      btn.classList.add('spinning');
+
+      // Set checking state
+      setState('render', 'checking');
+      setState('railway', 'checking');
+
+      // Ping both in parallel
+      const [rRender, rRailway] = await Promise.all([
+        pingServer('render'),
+        pingServer('railway')
+      ]);
+
+      results.render  = rRender;
+      results.railway = rRailway;
+
+      setState('render',  rRender.ok  ? 'online' : 'offline', rRender.ms,  rRender.msg);
+      setState('railway', rRailway.ok ? 'online' : 'offline', rRailway.ms, rRailway.msg);
+
+      markFastest();
+
+      const now = new Date().toLocaleTimeString();
+      document.getElementById('last-checked').textContent = `Last checked: ${now}`;
+
+      btn.classList.remove('spinning');
+    }
+
+    // Auto-refresh countdown
+    let countdown = 30;
+    setInterval(() => {
+      countdown--;
+      const el = document.getElementById('countdown');
+      if (el) el.textContent = countdown;
+      if (countdown <= 0) {
+        countdown = 30;
+        checkAll();
+      }
+    }, 1000);
+
+    // Initial check
+    checkAll();
+  </script>
+</body>
+</html>
