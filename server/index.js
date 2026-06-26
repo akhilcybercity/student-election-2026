@@ -8,8 +8,10 @@ const app = express();
 
 // ─── CORS — allow both Render and Railway deployments ────────────
 const allowedOrigins = [
-  process.env.RENDER_URL,    // e.g. https://your-app.onrender.com
-  process.env.RAILWAY_URL,   // e.g. https://your-app.up.railway.app
+  process.env.RENDER_URL,    // https://student-election-portal.onrender.com
+  process.env.RAILWAY_URL,   // https://web-production-0a395.up.railway.app
+  'https://student-election-portal.onrender.com',
+  'https://web-production-0a395.up.railway.app',
   'http://localhost:3000',
   'http://localhost:5000',
 ].filter(Boolean);
