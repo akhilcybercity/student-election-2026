@@ -217,10 +217,14 @@
       transform: translateY(-2px);
       box-shadow: 0 8px 30px rgba(99,102,241,0.45);
     }
-    .btn-open:disabled {
-      opacity: 0.4;
+    .btn-open.btn-disabled {
+      opacity: 0.45;
       cursor: not-allowed;
       pointer-events: none;
+    }
+    .btn-open.btn-offline {
+      opacity: 0.55;
+      border-color: rgba(239,68,68,0.25);
     }
     .fastest-badge {
       position: absolute;
@@ -410,9 +414,11 @@
       }
       const start = Date.now();
       try {
+        // Try with credentials first (same-origin or CORS-allowed)
         const res = await fetch(srv.url + '/api/health', {
           signal: AbortSignal.timeout(8000),
-          cache: 'no-store'
+          cache: 'no-store',
+          mode: 'cors'
         });
         const ms = Date.now() - start;
         if (res.ok) {
@@ -420,8 +426,21 @@
         } else {
           return { ok: false, ms, msg: `HTTP ${res.status}` };
         }
-      } catch (e) {
-        return { ok: false, ms: null, msg: 'Unreachable' };
+      } catch (corsErr) {
+        // Fallback: try no-cors (can't read response body, but if it doesn't throw the server is up)
+        try {
+          const start2 = Date.now();
+          await fetch(srv.url + '/api/health', {
+            signal: AbortSignal.timeout(8000),
+            cache: 'no-store',
+            mode: 'no-cors'
+          });
+          const ms = Date.now() - start2;
+          // no-cors always returns opaque response — if we reach here, server is reachable
+          return { ok: true, ms, msg: 'Online' };
+        } catch (e) {
+          return { ok: false, ms: null, msg: 'Unreachable' };
+        }
       }
     }
 
@@ -435,16 +454,18 @@
       const btn    = document.getElementById(srv.btnId);
       const urlEl  = document.getElementById(srv.urlId);
 
-      // URL display
+      // Always set the URL so button always works
       if (srv.url) {
         urlEl.textContent = srv.url.replace('https://', '');
+        btn.href = srv.url;  // Always set href — button is always clickable
       } else {
-        urlEl.textContent = 'Not configured — see status.html';
+        urlEl.textContent = 'Not configured';
       }
 
       // Remove all state classes
       card.classList.remove('online', 'offline', 'checking',
                             'status-online', 'status-offline', 'status-checking');
+      btn.classList.remove('btn-disabled', 'btn-offline', 'primary');
       pingEl.classList.remove('metric-online', 'metric-offline', 'metric-checking');
       statEl.classList.remove('metric-online', 'metric-offline', 'metric-checking');
 
@@ -455,8 +476,7 @@
         statEl.classList.add('metric-online');
         pingEl.querySelector('.metric-value').textContent = ms + ' ms';
         statEl.querySelector('.metric-value').textContent = '✓ OK';
-        btn.removeAttribute('disabled');
-        if (srv.url) btn.href = srv.url;
+        // Button stays fully clickable — primary style added by markFastest()
       } else if (state === 'offline') {
         card.classList.add('offline', 'status-offline');
         btext.textContent = 'Offline';
@@ -464,7 +484,8 @@
         statEl.classList.add('metric-offline');
         pingEl.querySelector('.metric-value').textContent = ms ? ms + ' ms' : '—';
         statEl.querySelector('.metric-value').textContent = msg || 'Down';
-        btn.setAttribute('disabled', true);
+        btn.classList.add('btn-offline'); // visually dim but still clickable
+        btn.querySelector('span').textContent = 'Try Anyway';
       } else {
         card.classList.add('checking', 'status-checking');
         btext.textContent = 'Checking…';

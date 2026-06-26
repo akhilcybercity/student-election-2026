@@ -43,8 +43,17 @@ app.use('/api/candidates', require('./routes/candidates'));
 app.use('/api/staff',      require('./routes/staff'));
 app.use('/api/votes',      require('./routes/votes'));
 
-// ─── Health check ────────────────────────────────────────────────
-app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date() }));
+// ─── Deployment label (used in health check + startup log) ──────────
+const DEPLOYMENT = process.env.RAILWAY_ENVIRONMENT
+  ? `Railway (${process.env.RAILWAY_ENVIRONMENT})`
+  : process.env.RENDER
+  ? 'Render'
+  : 'Local';
+
+// ─── Health check (open to all origins — public, no sensitive data) ──
+app.get('/api/health', cors({ origin: '*' }), (req, res) =>
+  res.json({ status: 'ok', time: new Date(), platform: DEPLOYMENT })
+);
 
 // ─── Fallback: serve frontend for non-API routes ─────────────────
 app.get('*', (req, res) => {
@@ -59,11 +68,6 @@ app.use((err, req, res, next) => {
 
 // ─── Start ────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
-const DEPLOYMENT = process.env.RAILWAY_ENVIRONMENT
-  ? `Railway (${process.env.RAILWAY_ENVIRONMENT})`
-  : process.env.RENDER
-  ? 'Render'
-  : 'Local';
 
 app.listen(PORT, () => {
   console.log('');
