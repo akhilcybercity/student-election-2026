@@ -79,6 +79,7 @@
       <button class="nav-item admin-only" data-page="candidates" onclick="navigateTo('candidates')"><span class="nav-icon">🎯</span> Candidates</button>
       <button class="nav-item" data-page="absent"     onclick="navigateTo('absent')"><span class="nav-icon">🚫</span> Mark Absent</button>
       <button class="nav-item admin-only" data-page="staff"      onclick="navigateTo('staff')"><span class="nav-icon">👤</span> Staff & Sessions</button>
+      <button class="nav-item admin-only" data-page="reelection" onclick="navigateTo('reelection')"><span class="nav-icon">🔄</span> Re-Election</button>
 
       <div class="nav-section-title">Reports</div>
       <button class="nav-item" data-page="results"   onclick="navigateTo('results')"><span class="nav-icon">🏆</span> Results</button>
@@ -304,6 +305,112 @@
       </div>
     </div>
 
+    <!-- RE-ELECTION (Selective Vote Reset) -->
+    <div id="page-reelection" class="page-content page-section" style="display:none">
+      <div class="section-header">
+        <div>
+          <div class="section-title">🔄 Re-Election — Selective Vote Reset</div>
+          <div style="font-size:.8rem;color:var(--white-50);margin-top:2px">Reset votes for one position in one class only. All other data stays intact.</div>
+        </div>
+      </div>
+
+      <div class="alert alert-info" style="margin-bottom:24px">
+        ℹ️ Use this when there is a <strong>tie</strong> in a specific position for a specific class.
+        Only the votes for that exact <strong>Class + Position</strong> combination will be cleared.
+        Students who voted for that position will be unlocked to re-vote — but their votes for
+        <em>all other positions</em> remain protected.
+      </div>
+
+      <!-- Step 1: Choose Class -->
+      <div class="glass" style="padding:24px;border-radius:var(--radius-lg);margin-bottom:20px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+          <div style="width:28px;height:28px;border-radius:50%;background:var(--indigo);display:flex;align-items:center;justify-content:center;font-size:.85rem;font-weight:700">1</div>
+          <div class="font-semi">Select the Class with the Tie</div>
+        </div>
+        <div class="form-group" style="max-width:380px">
+          <label class="form-label">Class</label>
+          <select class="form-select" id="re-class-select" onchange="reelectionOnClassChange()">
+            <option value="">— Choose a class —</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Step 2: Filter by Gender Category -->
+      <div class="glass" style="padding:24px;border-radius:var(--radius-lg);margin-bottom:20px" id="re-step2" style="display:none">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+          <div style="width:28px;height:28px;border-radius:50%;background:var(--indigo);display:flex;align-items:center;justify-content:center;font-size:.85rem;font-weight:700">2</div>
+          <div class="font-semi">Filter by Category (Gender of Position)</div>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap" id="re-gender-pills">
+          <button class="btn btn-ghost re-pill active" data-gender="" onclick="reelectionFilterGender(this, '')">
+            All Categories
+          </button>
+          <button class="btn btn-ghost re-pill" data-gender="Boy" onclick="reelectionFilterGender(this, 'Boy')">
+            👦 Boy Positions
+          </button>
+          <button class="btn btn-ghost re-pill" data-gender="Girl" onclick="reelectionFilterGender(this, 'Girl')">
+            👧 Girl Positions
+          </button>
+          <button class="btn btn-ghost re-pill" data-gender="Any" onclick="reelectionFilterGender(this, 'Any')">
+            🤝 Any / Common
+          </button>
+        </div>
+      </div>
+
+      <!-- Step 3: Choose Position -->
+      <div class="glass" style="padding:24px;border-radius:var(--radius-lg);margin-bottom:20px" id="re-step3">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+          <div style="width:28px;height:28px;border-radius:50%;background:var(--indigo);display:flex;align-items:center;justify-content:center;font-size:.85rem;font-weight:700">3</div>
+          <div class="font-semi">Select the Tied Position</div>
+        </div>
+        <div id="re-positions-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px">
+          <div class="text-muted text-sm" style="padding:8px">Select a class first…</div>
+        </div>
+      </div>
+
+      <!-- Preview Card -->
+      <div id="re-preview-card" class="glass" style="padding:24px;border-radius:var(--radius-lg);margin-bottom:20px;display:none;border:1px solid rgba(245,158,11,0.3)">
+        <div style="font-size:1rem;font-weight:700;color:var(--gold);margin-bottom:16px">📋 Impact Preview</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:20px">
+          <div class="stat-card" style="text-align:center">
+            <div class="stat-value" id="re-prev-votes" style="color:#fb7185">—</div>
+            <div class="stat-label">Votes to be Cleared</div>
+          </div>
+          <div class="stat-card" style="text-align:center">
+            <div class="stat-value" id="re-prev-voters" style="color:var(--gold)">—</div>
+            <div class="stat-label">Students Who Voted</div>
+          </div>
+          <div class="stat-card" style="text-align:center">
+            <div class="stat-value" id="re-prev-unlock" style="color:#34d399">—</div>
+            <div class="stat-label">Students Unlocked to Re-Vote</div>
+          </div>
+        </div>
+        <div class="alert alert-warning" style="margin-bottom:16px">
+          <strong id="re-prev-summary"></strong>
+        </div>
+        <div style="background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.2);border-radius:var(--radius-md);padding:12px;font-size:.82rem;color:var(--white-70)">
+          ✅ <strong style="color:#34d399">Safe Re-Vote Guarantee:</strong>
+          Students who already voted for other positions cannot vote for those again —
+          the system blocks duplicate votes automatically.
+        </div>
+        <div style="margin-top:20px;display:flex;gap:12px;flex-wrap:wrap">
+          <button class="btn btn-danger" id="re-confirm-btn" onclick="reelectionConfirmReset()">
+            🔄 Confirm Re-Election Reset
+          </button>
+          <button class="btn btn-ghost" onclick="reelectionClearSelection()">
+            Cancel
+          </button>
+        </div>
+      </div>
+
+      <!-- Success Banner -->
+      <div id="re-success-banner" style="display:none" class="alert" style="background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.3);border-radius:var(--radius-lg);padding:20px">
+        <div style="font-size:1.1rem;font-weight:700;color:#34d399;margin-bottom:8px">✅ Re-Election Reset Successful!</div>
+        <div id="re-success-msg" class="text-sm" style="color:var(--white-70)"></div>
+        <button class="btn btn-ghost btn-sm" style="margin-top:12px" onclick="document.getElementById('re-success-banner').style.display='none';navigateTo('results')">View Results →</button>
+      </div>
+    </div>
+
   </div><!-- /main-content -->
 </div><!-- /admin-panel -->
 
@@ -421,9 +528,207 @@
 <style>
 .hidden-import { display:none !important; }
 .settings-card { padding:24px; border-radius:var(--radius-lg); }
+
+/* Re-Election pills */
+.re-pill { border-radius: 100px !important; font-size:.85rem; }
+.re-pill.active {
+  background: var(--indigo) !important;
+  border-color: var(--indigo) !important;
+  color: #fff !important;
+}
+
+/* Position cards for re-election */
+.re-pos-card {
+  border: 1px solid var(--white-10);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: all 0.18s;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255,255,255,0.02);
+}
+.re-pos-card:hover { border-color: var(--indigo); background: rgba(99,102,241,0.08); }
+.re-pos-card.selected {
+  border-color: var(--indigo);
+  background: rgba(99,102,241,0.15);
+  box-shadow: 0 0 0 2px rgba(99,102,241,0.3);
+}
+.re-pos-card .pos-icon { font-size: 1.4rem; flex-shrink: 0; }
+.re-pos-card .pos-info { flex: 1; }
+.re-pos-card .pos-name { font-size: .88rem; font-weight: 600; }
+.re-pos-card .pos-gender { font-size: .75rem; color: var(--white-50); }
+.re-pos-card.re-hidden { display: none; }
 </style>
 
 <script src="js/api.js"></script>
 <script src="js/admin.js"></script>
+
+<script>
+/* =========================================================
+   Re-Election — Selective Vote Reset logic
+   ========================================================= */
+
+let reState = {
+  classId:    null,
+  positionId: null,
+  genderFilter: '',
+  allPositions: []
+};
+
+// Called when the Re-Election page is opened (from navigateTo)
+async function initReElectionPage() {
+  // Load classes fresh and populate dropdown
+  const sel = document.getElementById('re-class-select');
+  sel.innerHTML = '<option value="">— Loading classes… —</option>';
+  try {
+    const classes = await API.Classes.all();
+    reState._cachedClasses = classes;
+    sel.innerHTML = '<option value="">— Choose a class —</option>';
+    classes.forEach(c => {
+      sel.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+    });
+  } catch(e) {
+    sel.innerHTML = '<option value="">Error loading classes</option>';
+  }
+
+  // Load all positions once
+  try {
+    reState.allPositions = await API.Positions.all();
+  } catch(e) {}
+
+  reelectionClearSelection();
+}
+
+function reelectionOnClassChange() {
+  const classId = document.getElementById('re-class-select').value;
+  reState.classId = classId || null;
+  reState.positionId = null;
+  document.getElementById('re-preview-card').style.display = 'none';
+  document.getElementById('re-success-banner').style.display = 'none';
+
+  reelectionRenderPositions();
+}
+
+function reelectionFilterGender(btn, gender) {
+  document.querySelectorAll('.re-pill').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  reState.genderFilter = gender;
+  reState.positionId = null;
+  document.getElementById('re-preview-card').style.display = 'none';
+  reelectionRenderPositions();
+}
+
+function reelectionRenderPositions() {
+  const grid = document.getElementById('re-positions-grid');
+  if (!reState.classId) {
+    grid.innerHTML = '<div class="text-muted text-sm" style="padding:8px">Select a class first…</div>';
+    return;
+  }
+
+  const filtered = reState.genderFilter
+    ? reState.allPositions.filter(p => p.gender === reState.genderFilter)
+    : reState.allPositions;
+
+  if (filtered.length === 0) {
+    grid.innerHTML = '<div class="text-muted text-sm" style="padding:8px">No positions found for this category.</div>';
+    return;
+  }
+
+  grid.innerHTML = filtered.map(pos => `
+    <div class="re-pos-card ${reState.positionId === pos.id ? 'selected' : ''}"
+         id="re-pos-${pos.id}"
+         onclick="reelectionSelectPosition('${pos.id}')">
+      <div class="pos-icon">${pos.icon || '🏅'}</div>
+      <div class="pos-info">
+        <div class="pos-name">${pos.label}</div>
+        <div class="pos-gender">${pos.gender} · Order ${pos.sort_order}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function reelectionSelectPosition(positionId) {
+  reState.positionId = positionId;
+
+  // Visual highlight
+  document.querySelectorAll('.re-pos-card').forEach(c => c.classList.remove('selected'));
+  const card = document.getElementById('re-pos-' + positionId);
+  if (card) card.classList.add('selected');
+
+  // Fetch preview
+  const preview = document.getElementById('re-preview-card');
+  preview.style.display = 'block';
+  document.getElementById('re-prev-votes').textContent  = '…';
+  document.getElementById('re-prev-voters').textContent = '…';
+  document.getElementById('re-prev-unlock').textContent = '…';
+  document.getElementById('re-prev-summary').textContent = 'Loading preview…';
+
+  try {
+    const data = await apiFetch(
+      `/api/votes/selective-reset/preview?classId=${reState.classId}&positionId=${positionId}`
+    );
+    document.getElementById('re-prev-votes').textContent  = data.voteCount;
+    document.getElementById('re-prev-voters').textContent = data.voterCount;
+    document.getElementById('re-prev-unlock').textContent = data.studentsToUnlock;
+    document.getElementById('re-prev-summary').textContent =
+      `⚠️ This will clear all votes for "${data.positionLabel}" in class "${data.className}". ` +
+      `${data.studentsToUnlock} student(s) will be unlocked to re-vote for this position only.`;
+  } catch(e) {
+    document.getElementById('re-prev-summary').textContent = '⚠️ Could not load preview: ' + e.message;
+  }
+}
+
+function reelectionConfirmReset() {
+  if (!reState.classId || !reState.positionId) return;
+
+  const pos = reState.allPositions.find(p => p.id === reState.positionId);
+  const cls = (reState._cachedClasses || []).find(c => c.id === reState.classId);
+  const posLabel = pos ? pos.label : reState.positionId;
+  const clsName  = cls ? cls.name  : reState.classId;
+
+  document.getElementById('confirm-yes').textContent = '🔄 Reset for Re-Election';
+  showConfirm(
+    '🔄 Confirm Re-Election Reset',
+    `This will PERMANENTLY delete all votes for:\n\n📍 Position: ${posLabel}\n🏫 Class: ${clsName}\n\nAffected students will be unlocked to re-vote for this position only. All other votes are safe.`,
+    async () => {
+      try {
+        const result = await apiFetch('/api/votes/selective-reset', {
+          method: 'POST',
+          body: JSON.stringify({ classId: reState.classId, positionId: reState.positionId })
+        });
+
+        if (result.success) {
+          document.getElementById('re-preview-card').style.display = 'none';
+          const banner = document.getElementById('re-success-banner');
+          banner.style.display = 'block';
+          document.getElementById('re-success-msg').textContent =
+            `✅ Cleared ${result.deletedVotes} vote(s) for "${posLabel}" in "${clsName}". ` +
+            `${result.studentsReset} student(s) can now re-vote for this position.`;
+          reelectionClearSelection();
+          showToast(`Re-election reset done! ${result.deletedVotes} votes cleared.`, 'success');
+        }
+      } catch(e) {
+        showToast('Reset failed: ' + e.message, 'error');
+      }
+    },
+    '🔄 Reset for Re-Election'
+  );
+}
+
+function reelectionClearSelection() {
+  reState.positionId = null;
+  reState.classId    = null;
+  document.getElementById('re-class-select').value = '';
+  document.getElementById('re-preview-card').style.display = 'none';
+  reelectionRenderPositions();
+  // Reset gender pills
+  document.querySelectorAll('.re-pill').forEach(p => p.classList.remove('active'));
+  const firstPill = document.querySelector('.re-pill[data-gender=""]');
+  if (firstPill) firstPill.classList.add('active');
+  reState.genderFilter = '';
+}
+</script>
 </body>
 </html>

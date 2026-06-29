@@ -468,7 +468,92 @@ const mysqlDb = {
       await p.query('DELETE FROM votes');
       await p.query('UPDATE students SET has_voted=0, voted_at=NULL');
       return true;
+    },
+
+    // Preview how many votes/students a selective reset would affect (read-only)
+    previewReset: async ({ classId, positionId }) => {
+      const p = getPool();
+
+      // Count votes to be deleted
+      const [[{ voteCount }]] = await p.query(
+        'SELECT COUNT(*) AS voteCount FROM votes WHERE class_id=? AND position_id=?',
+        [classId, positionId]
+      );
+
+      // Count unique voters who cast that position vote in that class
+      const [[{ voterCount }]] = await p.query(
+        'SELECT COUNT(DISTINCT voter_id) AS voterCount FROM votes WHERE class_id=? AND position_id=?',
+        [classId, positionId]
+      );
+
+      // Of those voters, how many will become fully unlocked (no remaining votes)?
+      const [voterRows] = await p.query(
+        'SELECT DISTINCT voter_id FROM votes WHERE class_id=? AND position_id=?',
+        [classId, positionId]
+      );
+      let studentsToUnlock = 0;
+      for (const { voter_id } of voterRows) {
+        const [[{ remaining }]] = await p.query(
+          'SELECT COUNT(*) AS remaining FROM votes WHERE voter_id=? AND NOT (class_id=? AND position_id=?)',
+          [voter_id, classId, positionId]
+        );
+        if (remaining === 0) studentsToUnlock++;
+      }
+
+      // Class and position names for display
+      const [[cls]]  = await p.query('SELECT name FROM classes WHERE id=?', [classId]);
+      const [[pos]]  = await p.query('SELECT label, gender FROM positions WHERE id=?', [positionId]);
+
+      return {
+        voteCount,
+        voterCount,
+        studentsToUnlock,
+        className:     cls  ? cls.name  : classId,
+        positionLabel: pos  ? pos.label : positionId,
+        positionGender: pos ? pos.gender : 'Any'
+      };
+    },
+
+    // Selective reset: delete votes for one class+position, unlock only affected students
+    selectiveReset: async ({ classId, positionId }) => {
+      const p = getPool();
+
+      // Find affected voters BEFORE deleting
+      const [voterRows] = await p.query(
+        'SELECT DISTINCT voter_id FROM votes WHERE class_id=? AND position_id=?',
+        [classId, positionId]
+      );
+
+      if (voterRows.length === 0) {
+        return { deletedVotes: 0, studentsReset: 0 };
+      }
+
+      // Delete ONLY those specific votes
+      const [delResult] = await p.query(
+        'DELETE FROM votes WHERE class_id=? AND position_id=?',
+        [classId, positionId]
+      );
+      const deletedVotes = delResult.affectedRows;
+
+      // Unlock students who now have zero remaining votes
+      let studentsReset = 0;
+      for (const { voter_id } of voterRows) {
+        const [[{ remaining }]] = await p.query(
+          'SELECT COUNT(*) AS remaining FROM votes WHERE voter_id=?',
+          [voter_id]
+        );
+        if (remaining === 0) {
+          await p.query(
+            'UPDATE students SET has_voted=0, voted_at=NULL WHERE id=?',
+            [voter_id]
+          );
+          studentsReset++;
+        }
+      }
+
+      return { deletedVotes, studentsReset };
     }
+
   },
 
   sessions: {

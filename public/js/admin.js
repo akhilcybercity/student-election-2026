@@ -112,7 +112,7 @@ async function toggleElection() {
 let currentPage = 'dashboard';
 function navigateTo(page) {
   const role = sessionStorage.getItem('ems_role') || 'admin';
-  const adminOnlyPages = ['positions', 'candidates', 'staff', 'settings'];
+  const adminOnlyPages = ['positions', 'candidates', 'staff', 'settings', 'reelection'];
   if (role === 'staff' && adminOnlyPages.includes(page)) {
     navigateTo('dashboard');
     return;
@@ -125,18 +125,19 @@ function navigateTo(page) {
   document.querySelectorAll('.page-section').forEach(s => s.style.display = 'none');
   const section = document.getElementById(`page-${page}`);
   if (section) { section.style.display='block'; section.classList.remove('fade-in'); void section.offsetWidth; section.classList.add('fade-in'); }
-  const titles = { dashboard:'Dashboard', classes:'Manage Classes', students:'Manage Students', candidates:'Manage Candidates', positions:'Manage Positions', absent:'Mark Absent / Present', results:'Election Results', settings:'Settings', staff:'Staff & Sessions' };
+  const titles = { dashboard:'Dashboard', classes:'Manage Classes', students:'Manage Students', candidates:'Manage Candidates', positions:'Manage Positions', absent:'Mark Absent / Present', results:'Election Results', settings:'Settings', staff:'Staff & Sessions', reelection:'Re-Election — Selective Reset' };
   document.getElementById('topbar-title').textContent = titles[page] || page;
   switch(page) {
-    case 'dashboard':  renderDashboard();  break;
-    case 'classes':    renderClasses();    break;
-    case 'students':   renderStudents();   break;
-    case 'candidates': renderCandidates(); break;
-    case 'positions':  renderPositions();  break;
-    case 'absent':     renderAbsent();     break;
-    case 'results':    renderResults();    break;
-    case 'settings':   renderSettings();   break;
-    case 'staff':      renderStaff();      break;
+    case 'dashboard':   renderDashboard();     break;
+    case 'classes':     renderClasses();       break;
+    case 'students':    renderStudents();      break;
+    case 'candidates':  renderCandidates();    break;
+    case 'positions':   renderPositions();     break;
+    case 'absent':      renderAbsent();        break;
+    case 'results':     renderResults();       break;
+    case 'settings':    renderSettings();      break;
+    case 'staff':       renderStaff();         break;
+    case 'reelection':  initReElectionPage();  break;
   }
   document.getElementById('sidebar').classList.remove('open');
   document.getElementById('sidebar-overlay').classList.remove('active');

@@ -544,7 +544,76 @@ const jsonDb = {
       });
       writeData(data);
       return true;
+    },
+
+    // Preview how many votes/students a selective reset would affect (read-only)
+    previewReset: async ({ classId, positionId }) => {
+      const data = readData();
+
+      const affectedVotes = data.votes.filter(
+        v => v.class_id === classId && v.position_id === positionId
+      );
+      const voteCount   = affectedVotes.length;
+      const uniqueVoters = [...new Set(affectedVotes.map(v => v.voter_id))];
+      const voterCount  = uniqueVoters.length;
+
+      // Count how many of those voters would be fully unlocked
+      let studentsToUnlock = 0;
+      for (const vid of uniqueVoters) {
+        const remaining = data.votes.filter(
+          v => v.voter_id === vid && !(v.class_id === classId && v.position_id === positionId)
+        ).length;
+        if (remaining === 0) studentsToUnlock++;
+      }
+
+      const cls = data.classes.find(c => c.id === classId);
+      const pos = data.positions.find(p => p.id === positionId);
+
+      return {
+        voteCount,
+        voterCount,
+        studentsToUnlock,
+        className:      cls ? cls.name   : classId,
+        positionLabel:  pos ? pos.label  : positionId,
+        positionGender: pos ? pos.gender : 'Any'
+      };
+    },
+
+    // Selective reset: delete votes for one class+position, unlock only affected students
+    selectiveReset: async ({ classId, positionId }) => {
+      const data = readData();
+
+      const affectedVotes = data.votes.filter(
+        v => v.class_id === classId && v.position_id === positionId
+      );
+      if (affectedVotes.length === 0) return { deletedVotes: 0, studentsReset: 0 };
+
+      const uniqueVoters = [...new Set(affectedVotes.map(v => v.voter_id))];
+
+      // Delete only those votes
+      const deletedVotes = affectedVotes.length;
+      data.votes = data.votes.filter(
+        v => !(v.class_id === classId && v.position_id === positionId)
+      );
+
+      // Unlock students who have no remaining votes at all
+      let studentsReset = 0;
+      for (const vid of uniqueVoters) {
+        const remaining = data.votes.filter(v => v.voter_id === vid).length;
+        if (remaining === 0) {
+          const idx = data.students.findIndex(s => s.id === vid);
+          if (idx !== -1) {
+            data.students[idx].has_voted = false;
+            data.students[idx].voted_at  = null;
+            studentsReset++;
+          }
+        }
+      }
+
+      writeData(data);
+      return { deletedVotes, studentsReset };
     }
+
   },
 
   sessions: {

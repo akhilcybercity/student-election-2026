@@ -58,4 +58,36 @@ router.delete('/reset', requireAdmin, async (req, res) => {
   }
 });
 
+// GET /api/votes/selective-reset/preview?classId=X&positionId=Y
+// Returns impact counts without touching any data (admin only)
+router.get('/selective-reset/preview', requireAdmin, async (req, res) => {
+  try {
+    const { classId, positionId } = req.query;
+    if (!classId || !positionId)
+      return res.status(400).json({ error: 'classId and positionId are required' });
+
+    const preview = await db.votes.previewReset({ classId, positionId });
+    res.json(preview);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/votes/selective-reset — targeted re-election reset (admin only)
+// Body: { classId, positionId }
+// Deletes votes ONLY for that class+position. Unlocks only affected students.
+// All other votes and data are completely untouched.
+router.post('/selective-reset', requireAdmin, async (req, res) => {
+  try {
+    const { classId, positionId } = req.body;
+    if (!classId || !positionId)
+      return res.status(400).json({ error: 'classId and positionId are required' });
+
+    const result = await db.votes.selectiveReset({ classId, positionId });
+    res.json({ success: true, ...result });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 module.exports = router;
