@@ -259,7 +259,7 @@ async function buildBallot() {
         </div>${candHtml}`;
       container.appendChild(section);
     });
-    window._ballotPositions = positions;
+    window._ballotPositions = displayPositions;
   } catch(e) { container.innerHTML=`<div class="alert alert-error">❌ ${e.message}</div>`; }
 }
 
