@@ -452,8 +452,13 @@ const jsonDb = {
         throw err;
       }
 
-      // Record votes
+      // Record votes — skip any position already voted for (re-election safe guard)
       vote.selections.forEach(sel => {
+        const alreadyVoted = data.votes.some(
+          v => v.voter_id === vote.voter_id && v.position_id === sel.position_id
+        );
+        if (alreadyVoted) return; // silently skip — student already voted for this position
+
         data.votes.push({
           id: uuidv4(),
           voter_id: vote.voter_id,
@@ -535,6 +540,23 @@ const jsonDb = {
       const total_votes = data.votes.length;
       return { total_students, total_voted, total_absent, total_pending, total_classes, total_votes };
     },
+    // Unlock students in a class so they can re-vote (after selective reset)
+    // Sets has_voted=FALSE for all voted students in the class
+    // Safe because cast() now skips duplicate votes per position
+    unlockClassForReElection: async ({ classId }) => {
+      const data = readData();
+      let studentsUnlocked = 0;
+      data.students.forEach(s => {
+        if (s.class_id === classId && s.has_voted) {
+          s.has_voted = false;
+          s.voted_at  = null;
+          studentsUnlocked++;
+        }
+      });
+      writeData(data);
+      return { studentsUnlocked };
+    },
+
     reset: async () => {
       const data = readData();
       data.votes = [];

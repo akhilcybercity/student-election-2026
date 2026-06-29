@@ -378,6 +378,13 @@ const mysqlDb = {
         await conn.beginTransaction();
 
         for (const sel of vote.selections) {
+          // Skip positions the student already voted for (re-election safe guard)
+          const [[{ existing }]] = await conn.query(
+            'SELECT COUNT(*) AS existing FROM votes WHERE voter_id=? AND position_id=?',
+            [vote.voter_id, sel.position_id]
+          );
+          if (existing > 0) continue; // already voted for this position — skip silently
+
           await conn.query(
             'INSERT INTO votes (id,voter_id,candidate_id,position_id,class_id) VALUES (?,?,?,?,?)',
             [uuidv4(), vote.voter_id, sel.candidate_id, sel.position_id, vote.class_id]
@@ -463,6 +470,18 @@ const mysqlDb = {
       const [[{ total_votes   }]] = await p.query('SELECT COUNT(*) AS total_votes   FROM votes');
       return { ...r, total_classes, total_votes };
     },
+    // Unlock students in a class so they can re-vote (after selective reset)
+    // Sets has_voted=FALSE for all voted students in the class
+    // Safe because cast() now skips duplicate votes per position
+    unlockClassForReElection: async ({ classId }) => {
+      const p = getPool();
+      const [result] = await p.query(
+        'UPDATE students SET has_voted=0, voted_at=NULL WHERE class_id=? AND has_voted=1',
+        [classId]
+      );
+      return { studentsUnlocked: result.affectedRows };
+    },
+
     reset: async () => {
       const p = getPool();
       await p.query('DELETE FROM votes');

@@ -90,4 +90,21 @@ router.post('/selective-reset', requireAdmin, async (req, res) => {
   }
 });
 
+// POST /api/votes/selective-reset/unlock — unlock students in a class to re-vote (admin only)
+// Body: { classId }
+// Sets has_voted=FALSE for all voted students in that class.
+// SAFE: cast() now skips duplicate position votes, so students can only vote for cleared positions.
+router.post('/selective-reset/unlock', requireAdmin, async (req, res) => {
+  try {
+    const { classId } = req.body;
+    if (!classId)
+      return res.status(400).json({ error: 'classId is required' });
+
+    const result = await db.votes.unlockClassForReElection({ classId });
+    res.json({ success: true, ...result });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 module.exports = router;

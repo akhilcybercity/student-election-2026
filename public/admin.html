@@ -404,11 +404,41 @@
       </div>
 
       <!-- Success Banner -->
-      <div id="re-success-banner" style="display:none" class="alert" style="background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.3);border-radius:var(--radius-lg);padding:20px">
+      <div id="re-success-banner" style="display:none;background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.3);border-radius:var(--radius-lg);padding:20px;margin-bottom:20px">
         <div style="font-size:1.1rem;font-weight:700;color:#34d399;margin-bottom:8px">✅ Re-Election Reset Successful!</div>
         <div id="re-success-msg" class="text-sm" style="color:var(--white-70)"></div>
         <button class="btn btn-ghost btn-sm" style="margin-top:12px" onclick="document.getElementById('re-success-banner').style.display='none';navigateTo('results')">View Results →</button>
       </div>
+
+      <!-- Step 4: Unlock Students (always visible when class is selected) -->
+      <div class="glass" id="re-step4" style="padding:24px;border-radius:var(--radius-lg);border:1px solid rgba(245,158,11,0.25);display:none">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+          <div style="width:28px;height:28px;border-radius:50%;background:#f59e0b;display:flex;align-items:center;justify-content:center;font-size:.85rem;font-weight:700;color:#000">4</div>
+          <div class="font-semi">Unlock Students to Re-Vote</div>
+          <span style="font-size:.75rem;background:rgba(245,158,11,0.15);color:#f59e0b;padding:2px 10px;border-radius:100px;border:1px solid rgba(245,158,11,0.3)">Do this AFTER the reset above</span>
+        </div>
+        <div class="alert alert-warning" style="margin-bottom:16px;font-size:.85rem">
+          ⚠️ After clearing votes, students who voted for <em>other positions</em> are still locked
+          (because they still have valid votes). Click below to unlock <strong>all students in the selected class</strong>
+          so they can re-enter the voting booth. They can <em>only</em> vote for the cleared position —
+          all other positions are automatically blocked by the system.
+        </div>
+        <div style="background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.2);border-radius:var(--radius-md);padding:10px 14px;font-size:.8rem;color:var(--white-70);margin-bottom:16px">
+          🔒 <strong style="color:#34d399">Safe:</strong> The voting system now automatically detects and
+          blocks any attempt to vote twice for the same position. Students cannot re-vote where they already voted.
+        </div>
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+          <div>
+            <div style="font-size:.8rem;color:var(--white-50);margin-bottom:4px">Selected Class</div>
+            <div id="re-unlock-class-name" style="font-weight:600;color:var(--gold)">—</div>
+          </div>
+          <button class="btn btn-gold" onclick="reelectionUnlockStudents()" style="margin-left:auto">
+            🔓 Unlock Students for Re-Vote
+          </button>
+        </div>
+        <div id="re-unlock-result" style="margin-top:12px;display:none" class="alert" style="background:rgba(16,185,129,0.1)"></div>
+      </div>
+
     </div>
 
   </div><!-- /main-content -->
@@ -607,6 +637,17 @@ function reelectionOnClassChange() {
   reState.positionId = null;
   document.getElementById('re-preview-card').style.display = 'none';
   document.getElementById('re-success-banner').style.display = 'none';
+  document.getElementById('re-unlock-result').style.display = 'none';
+
+  // Show Step 4 unlock card if a class is selected
+  const step4 = document.getElementById('re-step4');
+  if (classId) {
+    const cls = (reState._cachedClasses || []).find(c => c.id === classId);
+    document.getElementById('re-unlock-class-name').textContent = cls ? cls.name : classId;
+    step4.style.display = 'block';
+  } else {
+    step4.style.display = 'none';
+  }
 
   reelectionRenderPositions();
 }
@@ -728,6 +769,45 @@ function reelectionClearSelection() {
   const firstPill = document.querySelector('.re-pill[data-gender=""]');
   if (firstPill) firstPill.classList.add('active');
   reState.genderFilter = '';
+  // Hide step 4 when clearing
+  document.getElementById('re-step4').style.display = 'none';
+  document.getElementById('re-unlock-result').style.display = 'none';
+}
+
+async function reelectionUnlockStudents() {
+  if (!reState.classId) {
+    showToast('Please select a class first.', 'error');
+    return;
+  }
+  const cls = (reState._cachedClasses || []).find(c => c.id === reState.classId);
+  const clsName = cls ? cls.name : reState.classId;
+
+  document.getElementById('confirm-yes').textContent = '🔓 Unlock Students';
+  showConfirm(
+    '🔓 Unlock Students for Re-Vote',
+    `This will allow ALL students in "${clsName}" to re-enter the voting booth.\n\nThey can ONLY vote for positions where their votes were cleared. All other positions are automatically blocked by the system.`,
+    async () => {
+      try {
+        const result = await apiFetch('/api/votes/selective-reset/unlock', {
+          method: 'POST',
+          body: JSON.stringify({ classId: reState.classId })
+        });
+
+        const resultDiv = document.getElementById('re-unlock-result');
+        resultDiv.style.display = 'block';
+        resultDiv.style.background = 'rgba(16,185,129,0.12)';
+        resultDiv.style.border = '1px solid rgba(16,185,129,0.3)';
+        resultDiv.style.borderRadius = 'var(--radius-md)';
+        resultDiv.style.padding = '12px 16px';
+        resultDiv.style.color = '#34d399';
+        resultDiv.textContent = `✅ ${result.studentsUnlocked} student(s) in "${clsName}" are now unlocked and can re-vote for the cleared position.`;
+
+        showToast(`✅ ${result.studentsUnlocked} students unlocked for re-voting!`, 'success');
+      } catch(e) {
+        showToast('Unlock failed: ' + e.message, 'error');
+      }
+    }
+  );
 }
 </script>
 </body>
