@@ -642,7 +642,14 @@ const jsonDb = {
     get: async (id) => {
       const data = readData();
       const s = data.sessions.find(x => x.id === id);
-      return s ? s.active_voter : '';
+      if (!s) return null;
+      return {
+        id: s.id,
+        name: s.name,
+        active_voter: s.active_voter || '',
+        re_election_class_id: s.re_election_class_id || null,
+        re_election_position_id: s.re_election_position_id || null
+      };
     },
     updateActiveVoter: async (id, activeVoterVal) => {
       const data = readData();
@@ -650,14 +657,38 @@ const jsonDb = {
       if (idx !== -1) {
         data.sessions[idx].active_voter = activeVoterVal;
       } else {
-        data.sessions.push({ id, name: `Session ${id}`, active_voter: activeVoterVal });
+        data.sessions.push({
+          id,
+          name: `Session ${id}`,
+          active_voter: activeVoterVal,
+          re_election_class_id: null,
+          re_election_position_id: null
+        });
       }
       writeData(data);
       return true;
     },
+    updateReElection: async (id, classId, positionId) => {
+      const data = readData();
+      const idx = data.sessions.findIndex(x => x.id === id);
+      if (idx !== -1) {
+        data.sessions[idx].re_election_class_id = classId || null;
+        data.sessions[idx].re_election_position_id = positionId || null;
+        writeData(data);
+        return true;
+      }
+      return false;
+    },
     all: async () => {
       const data = readData();
-      return data.sessions || [];
+      const list = data.sessions || [];
+      let changed = false;
+      list.forEach(s => {
+        if (s.re_election_class_id === undefined) { s.re_election_class_id = null; changed = true; }
+        if (s.re_election_position_id === undefined) { s.re_election_position_id = null; changed = true; }
+      });
+      if (changed) writeData(data);
+      return list;
     }
   },
 

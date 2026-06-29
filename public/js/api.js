@@ -51,6 +51,8 @@ const API = {
     getActiveVoter:   (sessionId) => apiFetch(`/api/settings/active-voter${sessionId ? '?sessionId=' + sessionId : ''}`),
     setActiveVoter:   (data)  => apiFetch('/api/settings/active-voter', { method:'POST', body: JSON.stringify(data) }),
     clearActiveVoter: (sessionId) => apiFetch(`/api/settings/active-voter${sessionId ? '?sessionId=' + sessionId : ''}`, { method:'DELETE' }),
+    sessions:         ()      => apiFetch('/api/settings/sessions'),
+    updateSession:    (id, d) => apiFetch(`/api/settings/sessions/${id}`, { method:'PUT', body: JSON.stringify(d) }),
   },
 
 

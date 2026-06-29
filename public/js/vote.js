@@ -210,12 +210,21 @@ async function buildBallot() {
   const container = document.getElementById('ballot-posts');
   container.innerHTML = '<div class="text-center text-muted" style="padding:20px">⏳ Loading ballot…</div>';
   try {
-    const [positions, candidates] = await Promise.all([
+    const sessionId = localStorage.getItem('ems_booth_session_id') || '1';
+    const [positions, candidates, sessionInfo] = await Promise.all([
       API.Positions.all(),
-      API.Candidates.byClass(classId)
+      API.Candidates.byClass(classId),
+      apiFetch(`/api/settings/sessions/${sessionId}`).catch(() => null)
     ]);
+
+    // Filter to only show the mapped re-election position if re-election mapping is active for this session + class
+    let displayPositions = positions;
+    if (sessionInfo && sessionInfo.re_election_class_id === classId && sessionInfo.re_election_position_id) {
+      displayPositions = positions.filter(p => p.id === sessionInfo.re_election_position_id);
+    }
+
     container.innerHTML = '';
-    positions.forEach(pos => {
+    displayPositions.forEach(pos => {
       const posCandidates = candidates.filter(c => c.position_id === pos.id);
       const section = document.createElement('div');
       section.className = 'post-section';

@@ -136,7 +136,7 @@ function navigateTo(page) {
     case 'absent':      renderAbsent();        break;
     case 'results':     renderResults();       break;
     case 'settings':    renderSettings();      break;
-    case 'staff':       renderStaff();         break;
+    case 'staff':       renderStaff(); if (window.renderSessionsMappingTable) window.renderSessionsMappingTable(); break;
     case 'reelection':  initReElectionPage();  break;
   }
   document.getElementById('sidebar').classList.remove('open');

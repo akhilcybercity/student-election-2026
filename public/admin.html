@@ -276,6 +276,32 @@
           </table>
         </div>
       </div>
+
+      <!-- SESSION RE-ELECTION MAPPING -->
+      <div class="section-header" style="margin-top: 40px">
+        <div class="section-title">🔄 Session Re-Election Mapping</div>
+      </div>
+      <div class="alert alert-info" style="margin-bottom: 20px">
+        ℹ️ Map a Session (1, 2, or 3) to a specific Class and Position for a re-election. When mapped, students voting in that session will <strong>only</strong> see the mapped position on their ballot. Select "Standard Voting" to clear the mapping.
+      </div>
+      <div class="glass" style="border-radius:var(--radius-lg);overflow:hidden">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Session</th>
+                <th>Mode</th>
+                <th>Mapped Class</th>
+                <th>Mapped Position</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="sessions-tbody">
+              <tr><td colspan="5" class="text-center text-muted" style="padding:20px">Loading session configurations...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
 
     <!-- SETTINGS -->
@@ -554,6 +580,34 @@
     </div>
   </div>
 </div>
+<!-- SESSION MAPPING MODAL -->
+<div class="modal-overlay" id="session-map-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title" id="session-map-modal-title">Map Re-Election Session</h3>
+      <button class="modal-close" onclick="closeSessionMapModal()">✕</button>
+    </div>
+    <input type="hidden" id="session-map-id-field" />
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div class="form-group">
+        <label class="form-label">Mapped Class</label>
+        <select id="session-map-class-select" class="form-select" onchange="onSessionMapClassChange()">
+          <option value="">— Standard Voting (No Re-Election) —</option>
+        </select>
+      </div>
+      <div class="form-group" id="session-map-pos-wrap" style="display:none">
+        <label class="form-label">Mapped Position</label>
+        <select id="session-map-pos-select" class="form-select">
+          <option value="">— Choose a position —</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button class="btn btn-ghost" onclick="closeSessionMapModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveSessionMapping()">💾 Save Mapping</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <style>
 .hidden-import { display:none !important; }
@@ -806,9 +860,132 @@ async function reelectionUnlockStudents() {
       } catch(e) {
         showToast('Unlock failed: ' + e.message, 'error');
       }
-    }
   );
 }
+
+// --- Session Re-Election Mapping Admin Functions ---
+let sessionsList = [];
+
+async function renderSessionsMappingTable() {
+  const tbody = document.getElementById('sessions-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted" style="padding:20px">Loading session configurations...</td></tr>';
+  
+  try {
+    const [sessions, classes, positions] = await Promise.all([
+      API.Settings.sessions(),
+      API.Classes.all(),
+      API.Positions.all()
+    ]);
+    sessionsList = sessions;
+    
+    const classMap = {};
+    classes.forEach(c => classMap[c.id] = c.name);
+    
+    const posMap = {};
+    positions.forEach(p => posMap[p.id] = p.label);
+    
+    tbody.innerHTML = sessions.map(s => {
+      const isReelection = !!(s.re_election_class_id && s.re_election_position_id);
+      const modeBadge = isReelection 
+        ? `<span class="badge" style="background:rgba(245,158,11,0.15);color:#f59e0b;border:1px solid rgba(245,158,11,0.3);font-size:0.75rem;padding:2px 8px;border-radius:12px">🔄 Re-Election</span>`
+        : `<span class="badge" style="background:rgba(52,211,153,0.15);color:#34d399;border:1px solid rgba(52,211,153,0.3);font-size:0.75rem;padding:2px 8px;border-radius:12px">🟢 Standard</span>`;
+      
+      const mappedClass = s.re_election_class_id ? (classMap[s.re_election_class_id] || s.re_election_class_id) : '—';
+      const mappedPos   = s.re_election_position_id ? (posMap[s.re_election_position_id] || s.re_election_position_id) : '—';
+      
+      return `<tr>
+        <td><strong>Session ${s.id}</strong></td>
+        <td>${modeBadge}</td>
+        <td>${mappedClass}</td>
+        <td>${mappedPos}</td>
+        <td>
+          <button class="btn btn-ghost btn-sm" onclick="openSessionMappingModal('${s.id}')" title="Configure Session Mapping" style="font-size: 0.8rem; padding: 4px 8px;">⚙️ Map Re-Election</button>
+        </td>
+      </tr>`;
+    }).join('');
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="5" class="text-center text-red" style="padding:20px">Error: ${e.message}</td></tr>`;
+  }
+}
+window.renderSessionsMappingTable = renderSessionsMappingTable;
+
+async function openSessionMappingModal(sessionId) {
+  try {
+    const session = sessionsList.find(s => s.id === sessionId);
+    if (!session) return;
+    
+    document.getElementById('session-map-id-field').value = sessionId;
+    document.getElementById('session-map-modal-title').textContent = `Map Re-Election to Session ${sessionId}`;
+    
+    // Populate class dropdown
+    const classSelect = document.getElementById('session-map-class-select');
+    classSelect.innerHTML = '<option value="">— Standard Voting (No Re-Election) —</option>';
+    const classes = await API.Classes.all();
+    classes.forEach(c => {
+      classSelect.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+    });
+    classSelect.value = session.re_election_class_id || '';
+    
+    // Populate position dropdown
+    const posSelect = document.getElementById('session-map-pos-select');
+    posSelect.innerHTML = '<option value="">— Choose a position —</option>';
+    const positions = await API.Positions.all();
+    positions.forEach(p => {
+      posSelect.innerHTML += `<option value="${p.id}">${p.label} (${p.gender})</option>`;
+    });
+    posSelect.value = session.re_election_position_id || '';
+    
+    onSessionMapClassChange();
+    document.getElementById('session-map-modal').classList.add('active');
+  } catch (e) {
+    showToast(e.message, 'error');
+  }
+}
+window.openSessionMappingModal = openSessionMappingModal;
+
+function onSessionMapClassChange() {
+  const classId = document.getElementById('session-map-class-select').value;
+  const posWrap = document.getElementById('session-map-pos-wrap');
+  if (classId) {
+    posWrap.style.display = 'block';
+  } else {
+    posWrap.style.display = 'none';
+    document.getElementById('session-map-pos-select').value = '';
+  }
+}
+window.onSessionMapClassChange = onSessionMapClassChange;
+
+function closeSessionMapModal() {
+  document.getElementById('session-map-modal').classList.remove('active');
+}
+window.closeSessionMapModal = closeSessionMapModal;
+
+async function saveSessionMapping() {
+  const sessionId = document.getElementById('session-map-id-field').value;
+  const classId   = document.getElementById('session-map-class-select').value;
+  const posId     = document.getElementById('session-map-pos-select').value;
+  
+  if (classId && !posId) {
+    showToast('Please select the position for re-election.', 'error');
+    return;
+  }
+  
+  try {
+    await API.Settings.updateSession(sessionId, {
+      re_election_class_id: classId || null,
+      re_election_position_id: posId || null
+    });
+    showToast(`Session ${sessionId} mapping updated! ✅`, 'success');
+    closeSessionMapModal();
+    renderSessionsMappingTable();
+  } catch (e) {
+    showToast(e.message, 'error');
+  }
+}
+window.saveSessionMapping = saveSessionMapping;
+
 </script>
 </body>
 </html>
+

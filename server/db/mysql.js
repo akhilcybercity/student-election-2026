@@ -26,6 +26,10 @@ function getPool() {
     }
 
     pool = mysql.createPool(dbConfig);
+
+    // Dyn alter table sessions to add re_election fields if they don't exist
+    pool.query('ALTER TABLE sessions ADD COLUMN re_election_class_id VARCHAR(36) DEFAULT NULL').catch(()=>{});
+    pool.query('ALTER TABLE sessions ADD COLUMN re_election_position_id VARCHAR(36) DEFAULT NULL').catch(()=>{});
   }
   return pool;
 }
@@ -578,14 +582,22 @@ const mysqlDb = {
   sessions: {
     get: async (id) => {
       const p = getPool();
-      const [[row]] = await p.query("SELECT active_voter FROM sessions WHERE id = ?", [id]);
-      return row ? row.active_voter : '';
+      const [[row]] = await p.query("SELECT * FROM sessions WHERE id = ?", [id]);
+      return row || null;
     },
     updateActiveVoter: async (id, activeVoterVal) => {
       const p = getPool();
       await p.query(
         "INSERT INTO sessions (id, name, active_voter) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE active_voter = ?",
         [id, `Session ${id}`, activeVoterVal, activeVoterVal]
+      );
+      return true;
+    },
+    updateReElection: async (id, classId, positionId) => {
+      const p = getPool();
+      await p.query(
+        "UPDATE sessions SET re_election_class_id = ?, re_election_position_id = ? WHERE id = ?",
+        [classId || null, positionId || null, id]
       );
       return true;
     },
