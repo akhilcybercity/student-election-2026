@@ -480,7 +480,7 @@ const mysqlDb = {
     unlockClassForReElection: async ({ classId }) => {
       const p = getPool();
       const [result] = await p.query(
-        'UPDATE students SET has_voted=0, voted_at=NULL WHERE class_id=? AND has_voted=1',
+        'UPDATE students SET has_voted=0, voted_at=NULL WHERE class_id=?',
         [classId]
       );
       return { studentsUnlocked: result.affectedRows };

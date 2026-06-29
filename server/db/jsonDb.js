@@ -547,7 +547,7 @@ const jsonDb = {
       const data = readData();
       let studentsUnlocked = 0;
       data.students.forEach(s => {
-        if (s.class_id === classId && s.has_voted) {
+        if (s.class_id === classId) {
           s.has_voted = false;
           s.voted_at  = null;
           studentsUnlocked++;
