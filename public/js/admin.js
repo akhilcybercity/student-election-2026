@@ -558,22 +558,41 @@ async function loadCandidatePosts() {
     const [positions, candidates, students] = await Promise.all([
       API.Positions.all(),
       API.Candidates.byClass(classId),
-      API.Students.all({ classId })
+      classId === 'class-cabinet' ? API.Students.all() : API.Students.all({ classId })
     ]);
     const wrap = document.getElementById('cand-posts-wrap');
     if (!positions.length) {
       wrap.innerHTML = '<div class="alert alert-warning">⚠️ No positions defined yet. Go to <strong>Manage Positions</strong> first.</div>';
       return;
     }
-    wrap.innerHTML = positions.map(pos => {
+
+    // Filter out Cabinet positions vs Standard positions
+    let displayPositions = positions;
+    if (classId === 'class-cabinet') {
+      displayPositions = positions.filter(p => p.id.startsWith('pos-cabinet-'));
+    } else {
+      displayPositions = positions.filter(p => !p.id.startsWith('pos-cabinet-'));
+    }
+
+    wrap.innerHTML = displayPositions.map(pos => {
       const assigned = candidates.filter(c => c.position_id === pos.id);
       const eligible = students.filter(s =>
         (pos.gender === 'Any' || s.gender === pos.gender) &&
         !assigned.find(a => a.student_id === s.id)
       );
-      const chips = assigned.map(c =>
-        `<span class="candidate-chip">${c.student_name} <button class="candidate-chip-remove" onclick="removeCandidate('${c.id}','${classId}')">✕</button></span>`
-      ).join('');
+      const chips = assigned.map(c => {
+        const avatarHtml = c.photo
+          ? `<img src="${c.photo}" style="width:26px;height:26px;border-radius:50%;object-fit:cover;border:1px solid rgba(255,255,255,0.2)" />`
+          : `<span style="font-size:1rem;opacity:0.7">👤</span>`;
+        return `<span class="candidate-chip" style="display:inline-flex;align-items:center;gap:8px;padding:4px 10px;border-radius:100px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);margin:4px">
+          ${avatarHtml}
+          <span>${c.student_name}</span>
+          <input type="file" id="file-${c.id}" style="display:none" onchange="uploadCandidatePhoto('${c.id}','${classId}')" accept="image/*" />
+          <label for="file-${c.id}" style="cursor:pointer;opacity:0.7;margin-left:4px;font-size:0.8rem" title="Upload Photo">📷</label>
+          <button class="candidate-chip-remove" onclick="removeCandidate('${c.id}','${classId}')" style="background:transparent;border:none;color:var(--white-50);cursor:pointer;font-size:0.8rem;margin-left:2px">✕</button>
+        </span>`;
+      }).join('');
+
       return `<div class="candidate-post-section">
         <div class="candidate-post-header">
           <span>${pos.icon}</span>
@@ -593,20 +612,48 @@ async function loadCandidatePosts() {
   } catch(e) { showToast(e.message,'error'); }
 }
 
+async function uploadCandidatePhoto(candidateId, classId) {
+  const fileInput = document.getElementById(`file-${candidateId}`);
+  if (!fileInput || !fileInput.files.length) return;
+  const file = fileInput.files[0];
+  const fd = new FormData();
+  fd.append('photo', file);
+  try {
+    showToast('Uploading photo...', 'info');
+    await API.Candidates.uploadPhoto(candidateId, fd);
+    showToast('Photo uploaded successfully! ✅', 'success');
+    loadCandidatePosts();
+    if (classId === 'class-cabinet' && window.loadCabinetNominees) {
+      window.loadCabinetNominees();
+    }
+  } catch (e) {
+    showToast(e.message, 'error');
+  }
+}
+window.uploadCandidatePhoto = uploadCandidatePhoto;
+
 async function addCandidate(classId, positionId) {
   const sel = document.getElementById(`cand-add-${positionId}`);
   const studentId = sel.value;
   if (!studentId) { showToast('Select a student first','error'); return; }
   try {
     await API.Candidates.add({ student_id: studentId, class_id: classId, position_id: positionId });
-    showToast('Candidate added ✅','success'); loadCandidatePosts();
+    showToast('Candidate added ✅','success');
+    loadCandidatePosts();
+    if (classId === 'class-cabinet' && window.loadCabinetNominees) {
+      window.loadCabinetNominees();
+    }
   } catch(e) { showToast(e.message,'error'); }
 }
 
 async function removeCandidate(candidateId, classId) {
   try {
     await API.Candidates.delete(candidateId);
-    showToast('Candidate removed','warning'); loadCandidatePosts();
+    showToast('Candidate removed','warning');
+    loadCandidatePosts();
+    if (classId === 'class-cabinet' && window.loadCabinetNominees) {
+      window.loadCabinetNominees();
+    }
   } catch(e) { showToast(e.message,'error'); }
 }
 

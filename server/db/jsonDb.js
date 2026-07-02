@@ -383,6 +383,7 @@ const jsonDb = {
           student_id: c.student_id,
           class_id: c.class_id,
           position_id: c.position_id,
+          photo: c.photo || null,
           student_name: student ? student.name : 'Unknown Student',
           student_gender: student ? student.gender : 'Boy',
           roll_no: student ? student.roll_no : '',
@@ -433,6 +434,16 @@ const jsonDb = {
       data.candidates = data.candidates.filter(c => c.id !== id);
       writeData(data);
       return true;
+    },
+    updatePhoto: async (id, photoPath) => {
+      const data = readData();
+      const idx = data.candidates.findIndex(c => c.id === id);
+      if (idx !== -1) {
+        data.candidates[idx].photo = photoPath;
+        writeData(data);
+        return true;
+      }
+      return false;
     }
   },
 

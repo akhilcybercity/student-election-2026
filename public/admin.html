@@ -475,7 +475,7 @@
         <button class="btn btn-primary" onclick="setupCabinetCandidates()">⚙️ Sync Winners to Cabinet Nominees</button>
       </div>
 
-      <div class="alert alert-info" style="margin-bottom:24px">
+      <div class="alert alert-info" style="margin-bottom:24px; display:block; line-height:1.5">
         ℹ️ <strong>Rules:</strong> The cabinet election allows <strong>only the elected class-level representatives</strong> to vote and contest.
         First-year winners contest for Joint Secretary roles, and second-year winners contest for Secretary/Chairperson roles.
       </div>
@@ -1131,8 +1131,11 @@ async function loadCabinetNominees() {
       const nomineeListHtml = posCandidates.length > 0
         ? posCandidates.map(c => {
             const stud = students.find(s => s.id === c.student_id);
+            const avatarHtml = c.photo
+              ? `<img src="${c.photo}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;border:1px solid rgba(255,255,255,0.2)" />`
+              : `<span style="font-size:1.1rem;opacity:0.7">👤</span>`;
             return `<div style="display:flex;align-items:center;gap:10px;padding:6px 12px;background:rgba(255,255,255,0.03);border-radius:6px;margin-bottom:4px">
-              <span style="font-size:1.1rem">👤</span>
+              ${avatarHtml}
               <div style="flex:1">
                 <div class="text-sm font-semi">${stud ? stud.name : 'Unknown'}</div>
                 <div style="font-size:0.75rem;color:var(--white-50)">Winner of: ${stud ? (stud.class_name || stud.class_id) : 'Unknown'}</div>

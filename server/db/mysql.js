@@ -30,12 +30,15 @@ function getPool() {
     // Dyn alter table sessions to add re_election fields if they don't exist
     pool.query('ALTER TABLE sessions ADD COLUMN re_election_class_id VARCHAR(36) DEFAULT NULL').catch(()=>{});
     pool.query('ALTER TABLE sessions ADD COLUMN re_election_position_id VARCHAR(36) DEFAULT NULL').catch(()=>{});
+    // Add photo column to candidates
+    pool.query('ALTER TABLE candidates ADD COLUMN photo VARCHAR(255) DEFAULT NULL').catch(()=>{});
   }
   return pool;
 }
 
 
 const mysqlDb = {
+  getPool: getPool,
   settings: {
     get: async (key) => {
       const p = getPool();
@@ -313,7 +316,7 @@ const mysqlDb = {
     byClass: async (classId) => {
       const p = getPool();
       const [rows] = await p.query(`
-        SELECT c.id, c.student_id, c.class_id, c.position_id,
+        SELECT c.id, c.student_id, c.class_id, c.position_id, c.photo,
                s.name AS student_name, s.gender AS student_gender, s.roll_no,
                p.label AS position_label, p.gender AS position_gender, p.icon
         FROM candidates c
@@ -357,6 +360,11 @@ const mysqlDb = {
       const [[{ count }]] = await p.query('SELECT COUNT(*) AS count FROM votes WHERE candidate_id=?', [id]);
       if (count > 0) throw new Error('Cannot remove candidate with existing votes');
       await p.query('DELETE FROM candidates WHERE id=?', [id]);
+      return true;
+    },
+    updatePhoto: async (id, photoPath) => {
+      const p = getPool();
+      await p.query('UPDATE candidates SET photo = ? WHERE id = ?', [photoPath, id]);
       return true;
     }
   },

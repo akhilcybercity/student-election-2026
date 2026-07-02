@@ -104,9 +104,10 @@ const API = {
 
   // Candidates
   Candidates: {
-    byClass: (classId) => apiFetch(`/api/candidates?classId=${classId}`),
-    add:     (data)    => apiFetch('/api/candidates',        { method:'POST',  body: JSON.stringify(data) }),
-    delete:  (id)      => apiFetch(`/api/candidates/${id}`,  { method:'DELETE' }),
+    byClass:     (classId) => apiFetch(`/api/candidates?classId=${classId}`),
+    add:         (data)    => apiFetch('/api/candidates',        { method:'POST',  body: JSON.stringify(data) }),
+    delete:      (id)      => apiFetch(`/api/candidates/${id}`,  { method:'DELETE' }),
+    uploadPhoto: (id, fd)  => apiUpload(`/api/candidates/${id}/photo`, fd),
   },
 
   // Votes

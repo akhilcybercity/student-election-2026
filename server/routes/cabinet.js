@@ -9,13 +9,11 @@ async function ensureCabinetInit() {
   
   // 1. Ensure Cabinet class exists
   if (isMySQL) {
-    const p = db.positions.getPool ? db.positions.getPool() : null; // MySQL pool
-    if (p) {
-      await p.query(`
-        INSERT IGNORE INTO classes (id, name, course, year, section)
-        VALUES ('class-cabinet', 'Cabinet', 'Cabinet', 0, 'C')
-      `);
-    }
+    const p = db.getPool();
+    await p.query(`
+      INSERT IGNORE INTO classes (id, name, course, year, section)
+      VALUES ('class-cabinet', 'Cabinet', 'Cabinet', 0, 'C')
+    `);
   } else {
     // JSON DB
     const data = require('../db/jsonDb').readData ? require('../db/jsonDb').readData() : null;
@@ -47,7 +45,7 @@ async function ensureCabinetInit() {
 
   for (const pos of cabinetPositions) {
     if (isMySQL) {
-      const p = db.positions.getPool();
+      const p = db.getPool();
       await p.query(`
         INSERT IGNORE INTO positions (id, label, gender, icon, sort_order)
         VALUES (?, ?, ?, ?, ?)
@@ -85,7 +83,7 @@ router.post('/setup', requireAdmin, async (req, res) => {
     
     // 1. Delete existing cabinet candidates
     if (isMySQL) {
-      const p = db.positions.getPool();
+      const p = db.getPool();
       await p.query("DELETE FROM candidates WHERE class_id = 'class-cabinet'");
     } else {
       const data = require('../db/jsonDb').readData();
@@ -117,7 +115,7 @@ router.post('/setup', requireAdmin, async (req, res) => {
       if (cabinetPosId) {
         try {
           if (isMySQL) {
-            const p = db.positions.getPool();
+            const p = db.getPool();
             // MySQL insert
             await p.query(`
               INSERT INTO candidates (id, student_id, class_id, position_id)
