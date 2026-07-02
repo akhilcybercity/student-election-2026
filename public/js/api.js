@@ -125,5 +125,6 @@ const API = {
     getVoters:    () => apiFetch('/api/cabinet/voters'),
     addVoter:     (student_id) => apiFetch('/api/cabinet/voters', { method: 'POST', body: JSON.stringify({ student_id }) }),
     deleteVoter:  (studentId) => apiFetch(`/api/cabinet/voters/${studentId}`, { method: 'DELETE' }),
+    addAllVoters: () => apiFetch('/api/cabinet/voters/all', { method: 'POST' }),
   },
 };

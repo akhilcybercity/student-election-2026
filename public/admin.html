@@ -567,11 +567,12 @@
           <!-- Manual Voter Addition Form -->
           <div style="margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid var(--white-10)">
             <h4 class="text-sm font-semi" style="margin-bottom:8px;color:var(--gold)">➕ Add Voter Manually</h4>
-            <div style="display:flex;gap:8px">
-              <select id="cabinet-add-voter-select" class="form-select" style="font-size:0.85rem;flex:1">
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <select id="cabinet-add-voter-select" class="form-select" style="font-size:0.85rem;flex:1;min-width:200px">
                 <option value="">— Select Student to Make Voter —</option>
               </select>
               <button class="btn btn-primary btn-sm" onclick="addCabinetVoterManually()">Add Voter</button>
+              <button class="btn btn-ghost btn-sm" onclick="addAllCabinetVoters()">➕ Add All Students</button>
             </div>
           </div>
 
@@ -1227,6 +1228,23 @@ async function deleteCabinetVoter(studentId, name) {
 }
 window.deleteCabinetVoter = deleteCabinetVoter;
 
+async function addAllCabinetVoters() {
+  showConfirm(
+    '➕ Add All Students as Voters',
+    'Are you sure you want to add all active students (not marked as absent) to the Cabinet Election voters list?',
+    async () => {
+      try {
+        await API.Cabinet.addAllVoters();
+        showToast('All active students added as voters! ✅', 'success');
+        await loadCabinetVotersList();
+      } catch (e) {
+        showToast(e.message, 'error');
+      }
+    }
+  );
+}
+window.addAllCabinetVoters = addAllCabinetVoters;
+
 async function loadCabinetNominees() {
   const container = document.getElementById('cabinet-nominees-container');
   container.innerHTML = '<div class="text-muted text-sm" style="padding:10px">Loading cabinet nominees...</div>';
@@ -1252,7 +1270,7 @@ async function loadCabinetNominees() {
         ? posCandidates.map(c => {
             const stud = students.find(s => s.id === c.student_id);
             const avatarHtml = c.photo
-              ? `<img src="${c.photo}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;border:1px solid rgba(255,255,255,0.2)" />`
+              ? `<img src="${c.photo}?t=${new Date().getTime()}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;border:1px solid rgba(255,255,255,0.2)" />`
               : `<span style="font-size:1.1rem;opacity:0.7">👤</span>`;
             return `<div style="display:flex;align-items:center;gap:10px;padding:6px 12px;background:rgba(255,255,255,0.03);border-radius:6px;margin-bottom:4px">
               ${avatarHtml}

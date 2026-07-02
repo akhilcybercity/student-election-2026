@@ -383,7 +383,7 @@ const jsonDb = {
           student_id: c.student_id,
           class_id: c.class_id,
           position_id: c.position_id,
-          photo: c.photo || null,
+          photo: student ? student.photo || null : null,
           student_name: student ? student.name : 'Unknown Student',
           student_gender: student ? student.gender : 'Boy',
           roll_no: student ? student.roll_no : '',

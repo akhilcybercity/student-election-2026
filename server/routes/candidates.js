@@ -56,8 +56,48 @@ router.post('/:id/photo', requireAdmin, upload.single('photo'), async (req, res)
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
     }
-    const photoPath = `/uploads/candidates/${req.file.filename}`;
-    await db.candidates.updatePhoto(req.params.id, photoPath);
+
+    const isMySQL = !!process.env.DB_HOST;
+    let studentId = null;
+
+    if (isMySQL) {
+      const p = db.getPool();
+      const [[cand]] = await p.query('SELECT student_id FROM candidates WHERE id = ?', [req.params.id]);
+      if (cand) studentId = cand.student_id;
+    } else {
+      const data = require('../db/jsonDb').readData();
+      const cand = data.candidates.find(c => c.id === req.params.id);
+      if (cand) studentId = cand.student_id;
+    }
+
+    if (!studentId) {
+      return res.status(404).json({ error: 'Candidate not found' });
+    }
+
+    const ext = path.extname(req.file.originalname);
+    const photoPath = `/uploads/students/${studentId}${ext}`;
+
+    const studentUploadDir = path.join(__dirname, '..', '..', 'public', 'uploads', 'students');
+    if (!fs.existsSync(studentUploadDir)) {
+      fs.mkdirSync(studentUploadDir, { recursive: true });
+    }
+
+    const destPath = path.join(studentUploadDir, `${studentId}${ext}`);
+    fs.renameSync(req.file.path, destPath);
+
+    // Update photo on student record
+    if (isMySQL) {
+      const p = db.getPool();
+      await p.query('UPDATE students SET photo = ? WHERE id = ?', [photoPath, studentId]);
+    } else {
+      const data = require('../db/jsonDb').readData();
+      const idx = data.students.findIndex(s => s.id === studentId);
+      if (idx !== -1) {
+        data.students[idx].photo = photoPath;
+        require('../db/jsonDb').writeData(data);
+      }
+    }
+
     res.json({ success: true, photo: photoPath });
   } catch (e) {
     res.status(500).json({ error: e.message });

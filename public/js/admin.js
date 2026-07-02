@@ -582,7 +582,7 @@ async function loadCandidatePosts() {
       );
       const chips = assigned.map(c => {
         const avatarHtml = c.photo
-          ? `<img src="${c.photo}" style="width:26px;height:26px;border-radius:50%;object-fit:cover;border:1px solid rgba(255,255,255,0.2)" />`
+          ? `<img src="${c.photo}?t=${new Date().getTime()}" style="width:26px;height:26px;border-radius:50%;object-fit:cover;border:1px solid rgba(255,255,255,0.2)" />`
           : `<span style="font-size:1rem;opacity:0.7">👤</span>`;
         return `<span class="candidate-chip" style="display:inline-flex;align-items:center;gap:8px;padding:4px 10px;border-radius:100px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);margin:4px">
           ${avatarHtml}

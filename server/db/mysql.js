@@ -30,8 +30,9 @@ function getPool() {
     // Dyn alter table sessions to add re_election fields if they don't exist
     pool.query('ALTER TABLE sessions ADD COLUMN re_election_class_id VARCHAR(36) DEFAULT NULL').catch(()=>{});
     pool.query('ALTER TABLE sessions ADD COLUMN re_election_position_id VARCHAR(36) DEFAULT NULL').catch(()=>{});
-    // Add photo column to candidates
+    // Add photo column to candidates and students
     pool.query('ALTER TABLE candidates ADD COLUMN photo VARCHAR(255) DEFAULT NULL').catch(()=>{});
+    pool.query('ALTER TABLE students ADD COLUMN photo VARCHAR(255) DEFAULT NULL').catch(()=>{});
     // Add cabinet_voters table
     pool.query(`
       CREATE TABLE IF NOT EXISTS cabinet_voters (
@@ -323,7 +324,7 @@ const mysqlDb = {
     byClass: async (classId) => {
       const p = getPool();
       const [rows] = await p.query(`
-        SELECT c.id, c.student_id, c.class_id, c.position_id, c.photo,
+        SELECT c.id, c.student_id, c.class_id, c.position_id, s.photo,
                s.name AS student_name, s.gender AS student_gender, s.roll_no,
                p.label AS position_label, p.gender AS position_gender, p.icon
         FROM candidates c

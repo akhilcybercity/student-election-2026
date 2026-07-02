@@ -185,4 +185,28 @@ router.delete('/voters/:studentId', requireAdmin, async (req, res) => {
   }
 });
 
+// POST /api/cabinet/voters/all - manually add all active students as voters
+router.post('/voters/all', requireAdmin, async (req, res) => {
+  try {
+    const isMySQL = !!process.env.DB_HOST;
+    if (isMySQL) {
+      const p = db.getPool();
+      await p.query("INSERT IGNORE INTO cabinet_voters (student_id) SELECT id FROM students WHERE is_absent = 0 AND id != 'admin'");
+    } else {
+      const data = require('../db/jsonDb').readData();
+      data.cabinet_voters = data.cabinet_voters || [];
+      const activeStudentIds = data.students.filter(s => !s.is_absent && s.id !== 'admin').map(s => s.id);
+      activeStudentIds.forEach(id => {
+        if (!data.cabinet_voters.includes(id)) {
+          data.cabinet_voters.push(id);
+        }
+      });
+      require('../db/jsonDb').writeData(data);
+    }
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 module.exports = router;

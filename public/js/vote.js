@@ -243,7 +243,7 @@ async function buildBallot() {
         candHtml = `<div class="candidates-list">` +
           posCandidates.map(c => {
             const avatarHtml = c.photo
-              ? `<img src="${c.photo}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.15);margin-right:12px" />`
+              ? `<img src="${c.photo}?t=${new Date().getTime()}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.15);margin-right:12px" />`
               : `<div style="width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;font-size:1.2rem;margin-right:12px;opacity:0.7">👤</div>`;
             return `<label class="candidate-option" id="opt-${pos.id}-${c.id}" onclick="selectCandidate('${pos.id}','${c.id}')" style="display:flex;align-items:center;padding:12px 18px">
               <input type="radio" name="post-${pos.id}" value="${c.id}" />
