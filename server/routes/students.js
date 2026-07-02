@@ -3,9 +3,24 @@ const router  = require('express').Router();
 const db      = require('../db');
 const multer  = require('multer');
 const XLSX    = require('xlsx');
+const fs      = require('fs');
+const path    = require('path');
 const { requireAdmin, requireUser } = require('../middleware/auth');
 
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+// Student photo upload setup
+const studentPhotoDir = path.join(__dirname, '..', '..', 'public', 'uploads', 'students');
+if (!fs.existsSync(studentPhotoDir)) fs.mkdirSync(studentPhotoDir, { recursive: true });
+
+const photoStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, studentPhotoDir),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    cb(null, `${req.params.id}${ext}`);
+  }
+});
+const photoUpload = multer({ storage: photoStorage });
+
+const excelUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 // GET /api/students
 router.get('/', async (req, res) => {
@@ -46,6 +61,27 @@ router.post('/', requireUser, async (req, res) => {
 
     const s = await db.students.add({ name, roll_no, gender, class_id });
     res.status(201).json(s);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/students/:id/photo — upload student photo
+router.post('/:id/photo', requireAdmin, photoUpload.single('photo'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    const ext = path.extname(req.file.originalname);
+    const photoPath = `/uploads/students/${req.params.id}${ext}`;
+    const isMySQL = !!process.env.DB_HOST;
+    if (isMySQL) {
+      const p = db.getPool();
+      await p.query('UPDATE students SET photo = ? WHERE id = ?', [photoPath, req.params.id]);
+    } else {
+      const data = require('../db/jsonDb').readData();
+      const idx = data.students.findIndex(s => s.id === req.params.id);
+      if (idx !== -1) { data.students[idx].photo = photoPath; require('../db/jsonDb').writeData(data); }
+    }
+    res.json({ success: true, photo: photoPath });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -95,7 +131,7 @@ router.patch('/:id/absent', requireUser, async (req, res) => {
 });
 
 // POST /api/students/import — Excel bulk import
-router.post('/import', requireAdmin, upload.single('file'), async (req, res) => {
+router.post('/import', requireAdmin, excelUpload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 

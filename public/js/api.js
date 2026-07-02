@@ -100,6 +100,7 @@ const API = {
     markAbsent:  (id, val) => apiFetch(`/api/students/${id}/absent`, { method:'PATCH', body: JSON.stringify({ is_absent: val }) }),
     import:      (formData)=> apiUpload('/api/students/import', formData),
     globalStats: ()        => apiFetch('/api/students/stats/global'),
+    uploadPhoto: (id, fd)  => apiUpload(`/api/students/${id}/photo`, fd),
   },
 
   // Candidates

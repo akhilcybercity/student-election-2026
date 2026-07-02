@@ -581,7 +581,7 @@
               <thead>
                 <tr>
                   <th>Voter Name</th>
-                  <th>Won Class Post</th>
+                  <th>Year / Class</th>
                   <th>Cabinet Voted</th>
                   <th>Booth Actions</th>
                 </tr>
@@ -594,6 +594,18 @@
         </div>
 
       </div>
+
+      <!-- Cabinet Results Section -->
+      <div class="glass" style="margin-top:28px;padding:24px;border-radius:var(--radius-lg)">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:12px">
+          <h3 class="font-semi">📊 Cabinet Election Results</h3>
+          <button class="btn btn-ghost btn-sm" onclick="loadCabinetResults()">🔄 Refresh Results</button>
+        </div>
+        <div id="cabinet-results-container">
+          <div class="text-muted text-sm" style="padding:16px;text-align:center">Click Refresh to load cabinet voting results</div>
+        </div>
+      </div>
+
     </div>
 
   </div><!-- /main-content -->
@@ -627,6 +639,15 @@
     <div class="modal-header"><h3 class="modal-title" id="student-modal-title">Add Student</h3><button class="modal-close" onclick="closeStudentModal()">✕</button></div>
     <input type="hidden" id="student-id-field" />
     <div style="display:flex;flex-direction:column;gap:14px">
+      <!-- Photo upload preview -->
+      <div id="student-photo-row" style="display:none;flex-direction:column;gap:8px;align-items:center;padding:12px;background:rgba(255,255,255,0.03);border-radius:var(--radius-md);border:1px dashed var(--white-20)">
+        <img id="student-photo-preview" src="" alt="" style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:2px solid var(--white-20);display:none" />
+        <div style="font-size:0.8rem;color:var(--white-50);margin-bottom:4px">📸 Student Photo</div>
+        <label class="btn btn-ghost btn-sm" style="cursor:pointer">
+          📤 Upload Photo
+          <input type="file" id="student-photo-input" accept="image/*" style="display:none" onchange="previewStudentPhoto(this)" />
+        </label>
+      </div>
       <div class="form-group"><label class="form-label">Full Name</label><input type="text" id="student-name" class="form-input" placeholder="Student Full Name" /></div>
       <div class="form-group"><label class="form-label">Roll Number <span class="text-muted">(optional)</span></label><input type="text" id="student-roll" class="form-input" placeholder="e.g. 22CS001" /></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
@@ -1337,9 +1358,10 @@ async function loadCabinetVotersList() {
         <td><span class="badge badge-indigo">${wonPos}</span></td>
         <td>${statusBadge}</td>
         <td>
-          <div style="display:flex;gap:6px">
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
             <button class="btn btn-gold btn-sm" onclick="activateCabinetVoter('${w.student_id}', '${w.name.replace(/'/g, "\\'")}')">🗳️ Activate</button>
-            <button class="btn btn-ghost btn-sm" onclick="deleteCabinetVoter('${w.student_id}', '${w.name.replace(/'/g, "\\'")}')" style="color:var(--red)">Remove</button>
+            <button class="btn btn-sm" style="background:#f59e0b;color:#000;border:none" onclick="markCabinetVoterAbsent('${w.student_id}', '${w.name.replace(/'/g, "\\'")}')">🚫 Absent</button>
+            <button class="btn btn-ghost btn-sm" onclick="deleteCabinetVoter('${w.student_id}', '${w.name.replace(/'/g, "\'")}')" style="color:var(--red)">Remove</button>
           </div>
         </td>
       </tr>`;
@@ -1421,6 +1443,80 @@ async function activateCabinetVoter(studentId, name) {
   }
 }
 window.activateCabinetVoter = activateCabinetVoter;
+
+async function markCabinetVoterAbsent(studentId, name) {
+  showConfirm(
+    '🚫 Mark as Absent',
+    `Mark "${name}" as absent for the Cabinet Election? They will be removed from the eligible voters list.`,
+    async () => {
+      try {
+        await API.Students.markAbsent(studentId, true);
+        await API.Cabinet.deleteVoter(studentId);
+        showToast(`${name} marked as absent and removed from voters.`, 'warning');
+        await loadCabinetVotersList();
+      } catch (e) {
+        showToast(e.message, 'error');
+      }
+    }
+  );
+}
+window.markCabinetVoterAbsent = markCabinetVoterAbsent;
+
+async function loadCabinetResults() {
+  const container = document.getElementById('cabinet-results-container');
+  container.innerHTML = '<div class="text-muted text-sm" style="padding:16px;text-align:center">Loading results...</div>';
+  try {
+    const [positions, candidates, students, votes] = await Promise.all([
+      API.Positions.all(),
+      API.Candidates.byClass('class-cabinet'),
+      API.Students.all(),
+      API.Votes.results('class-cabinet')
+    ]);
+    const cabinetPositions = positions.filter(p => p.id.startsWith('pos-cabinet-'));
+    if (!cabinetPositions.length) {
+      container.innerHTML = '<div class="text-muted text-sm" style="padding:16px;text-align:center">No cabinet positions set up yet.</div>';
+      return;
+    }
+    if (!votes || !votes.length) {
+      container.innerHTML = '<div class="text-muted text-sm" style="padding:16px;text-align:center">No votes cast in the Cabinet Election yet.</div>';
+      return;
+    }
+    // Build vote counts per candidate
+    const voteCounts = {};
+    votes.forEach(v => { voteCounts[v.candidate_id] = (voteCounts[v.candidate_id] || 0) + 1; });
+    const html = cabinetPositions.map(pos => {
+      const posCands = candidates.filter(c => c.position_id === pos.id);
+      const maxVotes = Math.max(0, ...posCands.map(c => voteCounts[c.id] || 0));
+      const rows = posCands.map(c => {
+        const count = voteCounts[c.id] || 0;
+        const isWinner = count > 0 && count === maxVotes;
+        const pct = maxVotes > 0 ? Math.round((count / maxVotes) * 100) : 0;
+        return `<tr style="${isWinner ? 'background:rgba(245,158,11,0.08)' : ''}">
+          <td><strong style="${isWinner ? 'color:var(--gold)' : ''}">${isWinner ? '🏆 ' : ''}${c.student_name}</strong></td>
+          <td style="text-align:center">${count}</td>
+          <td style="width:140px">
+            <div style="background:rgba(255,255,255,0.07);border-radius:100px;height:8px;overflow:hidden">
+              <div style="height:100%;width:${pct}%;background:${isWinner ? 'var(--gold)' : 'var(--indigo-light)'};border-radius:100px;transition:width 0.5s"></div>
+            </div>
+          </td>
+        </tr>`;
+      }).join('');
+      return `<div style="margin-bottom:16px;border:1px solid var(--white-10);border-radius:var(--radius-md);overflow:hidden">
+        <div style="padding:10px 16px;background:rgba(255,255,255,0.04);font-weight:600;display:flex;align-items:center;gap:8px">
+          <span>${pos.icon || '🏅'}</span><span>${pos.label}</span>
+        </div>
+        <table style="width:100%;border-radius:0">
+          <thead><tr><th>Candidate</th><th style="text-align:center">Votes</th><th>Progress</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+    }).join('');
+    container.innerHTML = html;
+  } catch(e) {
+    container.innerHTML = `<div class="text-red text-sm" style="padding:16px;text-align:center">Error loading results: ${e.message}</div>`;
+  }
+}
+window.loadCabinetResults = loadCabinetResults;
 
 </script>
 </body>

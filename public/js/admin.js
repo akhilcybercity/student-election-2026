@@ -364,6 +364,8 @@ let studentFilterClass='', studentFilterGender='', studentSearch='';
 async function renderStudents() {
   try {
     let classes = await API.Classes.all();
+    // Exclude the virtual cabinet class from the student filter
+    classes = classes.filter(c => c.id !== 'class-cabinet');
     
     // Restrict classes for staff
     const role = sessionStorage.getItem('ems_role') || 'admin';
@@ -476,6 +478,10 @@ function openAddStudent() {
   ['student-name','student-roll'].forEach(id => document.getElementById(id).value='');
   document.getElementById('student-gender').value = 'Boy';
   document.getElementById('student-class-select').value = '';
+  // Hide photo row for new students
+  document.getElementById('student-photo-row').style.display = 'none';
+  document.getElementById('student-photo-preview').style.display = 'none';
+  document.getElementById('student-photo-input').value = '';
   document.getElementById('student-modal').classList.add('active');
 }
 
@@ -488,8 +494,32 @@ async function openEditStudent(id) {
     document.getElementById('student-roll').value       = s.roll_no||'';
     document.getElementById('student-gender').value     = s.gender;
     document.getElementById('student-class-select').value = s.class_id;
+    // Show photo upload row
+    const photoRow = document.getElementById('student-photo-row');
+    photoRow.style.display = 'flex';
+    const photoPreview = document.getElementById('student-photo-preview');
+    if (s.photo) {
+      photoPreview.src = `${s.photo}?t=${Date.now()}`;
+      photoPreview.style.display = 'block';
+    } else {
+      photoPreview.src = '';
+      photoPreview.style.display = 'none';
+    }
+    document.getElementById('student-photo-input').value = '';
     document.getElementById('student-modal').classList.add('active');
   } catch(e) { showToast(e.message,'error'); }
+}
+
+function previewStudentPhoto(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const preview = document.getElementById('student-photo-preview');
+    preview.src = e.target.result;
+    preview.style.display = 'block';
+  };
+  reader.readAsDataURL(file);
 }
 
 function closeStudentModal() { document.getElementById('student-modal').classList.remove('active'); }
@@ -502,8 +532,18 @@ async function saveStudent() {
   const class_id = document.getElementById('student-class-select').value;
   if (!name||!class_id) { showToast('Name and Class are required','error'); return; }
   try {
+    let savedId = id;
     if (id) { await API.Students.update(id,{name,roll_no,gender,class_id}); showToast('Student updated ✅','success'); }
-    else     { await API.Students.add({name,roll_no,gender,class_id});      showToast('Student added ✅','success'); }
+    else     { const s = await API.Students.add({name,roll_no,gender,class_id}); savedId = s.id; showToast('Student added ✅','success'); }
+    
+    // Upload photo if selected
+    const photoInput = document.getElementById('student-photo-input');
+    if (savedId && photoInput && photoInput.files.length > 0) {
+      const fd = new FormData();
+      fd.append('photo', photoInput.files[0]);
+      await API.Students.uploadPhoto(savedId, fd);
+    }
+    
     closeStudentModal(); renderStudentTable();
   } catch(e) { showToast(e.message,'error'); }
 }
