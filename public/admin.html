@@ -484,7 +484,7 @@
       <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:24px;margin-bottom:24px">
         
         <!-- Mapped Sessions Card -->
-        <div class="glass admin-only" style="padding:20px;border-radius:var(--radius-lg)">
+        <div class="glass" style="padding:20px;border-radius:var(--radius-lg)">
           <h3 class="font-semi" style="margin-bottom:12px">🔄 Map Cabinet Election to Session</h3>
           <p class="text-sm text-muted" style="margin-bottom:16px">
             Map a Session (1, 2, or 3) to the Cabinet Election. When mapped, students voting on that session's terminal will <strong>only</strong> see the Cabinet Ballot.
@@ -796,8 +796,8 @@
 .re-pos-card.re-hidden { display: none; }
 </style>
 
-<script src="js/api.js?v=20260703a"></script>
-<script src="js/admin.js?v=20260703a"></script>
+<script src="js/api.js?v=20260703b"></script>
+<script src="js/admin.js?v=20260703b"></script>
 
 <script>
 /* =========================================================
@@ -1148,6 +1148,20 @@ function stopCabinetPoll() {
 
 async function initCabinetPage() {
   stopCabinetPoll(); // clear any existing poll first
+
+  // Auto-lock session dropdown for staff
+  const role = sessionStorage.getItem('ems_role') || 'admin';
+  const select = document.getElementById('cabinet-session-select');
+  if (role === 'staff') {
+    const assignedSession = sessionStorage.getItem('ems_session_id');
+    if (assignedSession) {
+      select.value = assignedSession;
+      select.disabled = true; // lock it so they can only map their own session
+    }
+  } else {
+    select.disabled = false;
+  }
+
   await loadCabinetSessionStatus();
   await loadCabinetNominees();
   await loadCabinetVotersList();
