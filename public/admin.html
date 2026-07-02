@@ -80,7 +80,7 @@
       <button class="nav-item" data-page="absent"     onclick="navigateTo('absent')"><span class="nav-icon">🚫</span> Mark Absent</button>
       <button class="nav-item admin-only" data-page="staff"      onclick="navigateTo('staff')"><span class="nav-icon">👤</span> Staff & Sessions</button>
       <button class="nav-item admin-only" data-page="reelection" onclick="navigateTo('reelection')"><span class="nav-icon">🔄</span> Re-Election</button>
-      <button class="nav-item admin-only" data-page="cabinet"    onclick="navigateTo('cabinet')"><span class="nav-icon">👑</span> Cabinet Election</button>
+      <button class="nav-item" data-page="cabinet"    onclick="navigateTo('cabinet')"><span class="nav-icon">👑</span> Cabinet Election</button>
 
       <div class="nav-section-title">Reports</div>
       <button class="nav-item" data-page="results"   onclick="navigateTo('results')"><span class="nav-icon">🏆</span> Results</button>
@@ -484,7 +484,7 @@
       <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:24px;margin-bottom:24px">
         
         <!-- Mapped Sessions Card -->
-        <div class="glass" style="padding:20px;border-radius:var(--radius-lg)">
+        <div class="glass admin-only" style="padding:20px;border-radius:var(--radius-lg)">
           <h3 class="font-semi" style="margin-bottom:12px">🔄 Map Cabinet Election to Session</h3>
           <p class="text-sm text-muted" style="margin-bottom:16px">
             Map a Session (1, 2, or 3) to the Cabinet Election. When mapped, students voting on that session's terminal will <strong>only</strong> see the Cabinet Ballot.
@@ -796,8 +796,8 @@
 .re-pos-card.re-hidden { display: none; }
 </style>
 
-<script src="js/api.js?v=20260702e"></script>
-<script src="js/admin.js?v=20260702e"></script>
+<script src="js/api.js?v=20260703a"></script>
+<script src="js/admin.js?v=20260703a"></script>
 
 <script>
 /* =========================================================
@@ -1435,8 +1435,15 @@ window.mapCabinetToSession = mapCabinetToSession;
 
 async function activateCabinetVoter(studentId, name) {
   try {
-    const select = document.getElementById('cabinet-session-select');
-    const sessionId = select.value;
+    const role = sessionStorage.getItem('ems_role') || 'admin';
+    let sessionId;
+    if (role === 'staff') {
+      sessionId = sessionStorage.getItem('ems_session_id');
+      if (!sessionId) throw new Error("No session assigned to your staff account.");
+    } else {
+      const select = document.getElementById('cabinet-session-select');
+      sessionId = select.value;
+    }
     
     // Directly activate the voter for cabinet election.
     // classId='class-cabinet' tells the voting booth to show the cabinet ballot.
