@@ -796,8 +796,8 @@
 .re-pos-card.re-hidden { display: none; }
 </style>
 
-<script src="js/api.js?v=20260702b"></script>
-<script src="js/admin.js?v=20260702b"></script>
+<script src="js/api.js?v=20260702c"></script>
+<script src="js/admin.js?v=20260702c"></script>
 
 <script>
 /* =========================================================
@@ -1323,47 +1323,47 @@ async function loadCabinetVotersList() {
   tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted" style="padding:20px">Loading eligible voters...</td></tr>';
   
   try {
-    const [voters, votes] = await Promise.all([
-      API.Cabinet.getVoters(),
-      apiFetch('/api/votes/results?classId=class-cabinet').catch(() => [])
-    ]);
+    const voters = await API.Cabinet.getVoters();
     
-    // Calculate total voters and voted counts for stats
     const totalVoters = voters.length;
-    
-    // Fetch stats of class-cabinet
-    let votedCount = 0;
-    try {
-      const cabStats = await apiFetch('/api/classes/class-cabinet/stats');
-      votedCount = cabStats.voted || 0;
-    } catch(err){}
-    
+    const votedCount  = voters.filter(v => v.cabinet_has_voted).length;
     document.getElementById('cab-stat-voters').textContent = totalVoters;
-    document.getElementById('cab-stat-voted').textContent = votedCount;
+    document.getElementById('cab-stat-voted').textContent  = votedCount;
 
     if (voters.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted" style="padding:20px">No eligible voters mapped yet. Click "Sync Winners to Cabinet Nominees" or add voters manually.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted" style="padding:20px">No eligible voters mapped yet. Click “Sync Winners to Cabinet Nominees” or add voters manually.</td></tr>';
       return;
     }
 
     tbody.innerHTML = voters.map(w => {
-      const wonPos = w.year ? (parseInt(w.year) === 2 ? '2nd Year Rep' : '1st Year Rep') : 'Elected Rep';
-      const statusBadge = `<span class="badge badge-gray">Eligible</span>`;
-      
-      return `<tr>
+      const yearLabel = w.year ? (parseInt(w.year) === 2 ? '2nd Year' : '1st Year') : 'Elected Rep';
+      const voted = !!w.cabinet_has_voted;
+      const statusBadge = voted
+        ? `<span class="badge badge-green">✅ Voted</span>`
+        : `<span class="badge badge-gray">Eligible</span>`;
+      const votedTime = voted && w.cabinet_voted_at
+        ? `<div style="font-size:0.7rem;color:var(--white-40);margin-top:2px">${new Date(w.cabinet_voted_at).toLocaleTimeString()}</div>`
+        : '';
+
+      const actionBtns = voted
+        ? `<div style="display:flex;gap:6px;flex-wrap:wrap">
+            <button class="btn btn-sm" style="background:rgba(239,68,68,0.15);color:#f87171;border:1px solid rgba(239,68,68,0.3)" onclick="resetCabinetVoterVote('${w.student_id}', '${w.name.replace(/'/g, "\\'")}')">&#x21ba; Reset Vote</button>
+            <button class="btn btn-ghost btn-sm" onclick="deleteCabinetVoter('${w.student_id}', '${w.name.replace(/'/g, "\\'")}')" style="color:var(--red)">Remove</button>
+           </div>`
+        : `<div style="display:flex;gap:6px;flex-wrap:wrap">
+            <button class="btn btn-gold btn-sm" onclick="activateCabinetVoter('${w.student_id}', '${w.name.replace(/'/g, "\\'")}')">&#x1F5F3;&#xFE0F; Activate</button>
+            <button class="btn btn-sm" style="background:#f59e0b;color:#000;border:none" onclick="markCabinetVoterAbsent('${w.student_id}', '${w.name.replace(/'/g, "\\'")}')">&#x1F6AB; Absent</button>
+            <button class="btn btn-ghost btn-sm" onclick="deleteCabinetVoter('${w.student_id}', '${w.name.replace(/'/g, "\\'")}')" style="color:var(--red)">Remove</button>
+           </div>`;
+
+      return `<tr style="${voted ? 'opacity:0.75' : ''}">
         <td>
           <strong>${w.name}</strong>
           <div style="font-size:0.75rem;color:var(--white-50)">${w.class_name} · ${w.gender}</div>
         </td>
-        <td><span class="badge badge-indigo">${wonPos}</span></td>
-        <td>${statusBadge}</td>
-        <td>
-          <div style="display:flex;gap:6px;flex-wrap:wrap">
-            <button class="btn btn-gold btn-sm" onclick="activateCabinetVoter('${w.student_id}', '${w.name.replace(/'/g, "\\'")}')">🗳️ Activate</button>
-            <button class="btn btn-sm" style="background:#f59e0b;color:#000;border:none" onclick="markCabinetVoterAbsent('${w.student_id}', '${w.name.replace(/'/g, "\\'")}')">🚫 Absent</button>
-            <button class="btn btn-ghost btn-sm" onclick="deleteCabinetVoter('${w.student_id}', '${w.name.replace(/'/g, "\'")}')" style="color:var(--red)">Remove</button>
-          </div>
-        </td>
+        <td><span class="badge badge-indigo">${yearLabel}</span></td>
+        <td>${statusBadge}${votedTime}</td>
+        <td>${actionBtns}</td>
       </tr>`;
     }).join('');
   } catch (e) {
@@ -1457,38 +1457,59 @@ async function markCabinetVoterAbsent(studentId, name) {
 }
 window.markCabinetVoterAbsent = markCabinetVoterAbsent;
 
+async function resetCabinetVoterVote(studentId, name) {
+  showConfirm(
+    '&#x21ba; Reset Cabinet Vote',
+    `Reset "${name}"'s cabinet vote? Their vote data will be deleted and they can vote again. No other data will be affected.`,
+    async () => {
+      try {
+        await API.Cabinet.resetVoterVote(studentId);
+        showToast(`${name}'s cabinet vote has been reset. They can vote again.`, 'success');
+        await loadCabinetVotersList();
+      } catch (e) {
+        showToast(e.message, 'error');
+      }
+    }
+  );
+}
+window.resetCabinetVoterVote = resetCabinetVoterVote;
+
 async function loadCabinetResults() {
   const container = document.getElementById('cabinet-results-container');
   container.innerHTML = '<div class="text-muted text-sm" style="padding:16px;text-align:center">Loading results...</div>';
   try {
-    const [positions, candidates, students, votes] = await Promise.all([
-      API.Positions.all(),
-      API.Candidates.byClass('class-cabinet'),
-      API.Students.all(),
-      API.Votes.results('class-cabinet')
-    ]);
-    const cabinetPositions = positions.filter(p => p.id.startsWith('pos-cabinet-'));
-    if (!cabinetPositions.length) {
-      container.innerHTML = '<div class="text-muted text-sm" style="padding:16px;text-align:center">No cabinet positions set up yet.</div>';
+    // /api/votes/results returns [{class, stats, positions:[{id,label,icon,candidates:[{id,name,votes}]}]}]
+    const results = await API.Votes.results('class-cabinet');
+    const cabinetResult = Array.isArray(results) ? results.find(r => r.class && r.class.id === 'class-cabinet') : null;
+
+    if (!cabinetResult || !cabinetResult.positions || !cabinetResult.positions.length) {
+      container.innerHTML = '<div class="text-muted text-sm" style="padding:16px;text-align:center">No cabinet positions or no votes yet.</div>';
       return;
     }
-    if (!votes || !votes.length) {
+
+    const hasVotes = cabinetResult.positions.some(pos => pos.candidates && pos.candidates.some(c => c.votes > 0));
+    if (!hasVotes) {
       container.innerHTML = '<div class="text-muted text-sm" style="padding:16px;text-align:center">No votes cast in the Cabinet Election yet.</div>';
       return;
     }
-    // Build vote counts per candidate
-    const voteCounts = {};
-    votes.forEach(v => { voteCounts[v.candidate_id] = (voteCounts[v.candidate_id] || 0) + 1; });
-    const html = cabinetPositions.map(pos => {
-      const posCands = candidates.filter(c => c.position_id === pos.id);
-      const maxVotes = Math.max(0, ...posCands.map(c => voteCounts[c.id] || 0));
-      const rows = posCands.map(c => {
-        const count = voteCounts[c.id] || 0;
+
+    const stats = cabinetResult.stats || {};
+    const statHtml = `<div style="display:flex;gap:24px;margin-bottom:20px;padding:12px 16px;background:rgba(255,255,255,0.03);border-radius:var(--radius-md);border:1px solid var(--white-10)">
+      <div><div style="font-size:1.5rem;font-weight:700;color:var(--indigo-light)">${stats.total||0}</div><div style="font-size:0.75rem;color:var(--white-50)">Total Voters</div></div>
+      <div><div style="font-size:1.5rem;font-weight:700;color:#34d399">${stats.voted||0}</div><div style="font-size:0.75rem;color:var(--white-50)">Voted</div></div>
+      <div><div style="font-size:1.5rem;font-weight:700;color:var(--gold)">${stats.pending||0}</div><div style="font-size:0.75rem;color:var(--white-50)">Pending</div></div>
+    </div>`;
+
+    const posHtml = cabinetResult.positions.map(pos => {
+      const cands = pos.candidates || [];
+      const maxVotes = Math.max(0, ...cands.map(c => c.votes || 0));
+      const rows = cands.map(c => {
+        const count = c.votes || 0;
         const isWinner = count > 0 && count === maxVotes;
         const pct = maxVotes > 0 ? Math.round((count / maxVotes) * 100) : 0;
         return `<tr style="${isWinner ? 'background:rgba(245,158,11,0.08)' : ''}">
-          <td><strong style="${isWinner ? 'color:var(--gold)' : ''}">${isWinner ? '🏆 ' : ''}${c.student_name}</strong></td>
-          <td style="text-align:center">${count}</td>
+          <td><strong style="${isWinner ? 'color:var(--gold)' : ''}">${isWinner ? '&#x1F3C6; ' : ''}${c.name}</strong></td>
+          <td style="text-align:center;font-weight:700">${count}</td>
           <td style="width:140px">
             <div style="background:rgba(255,255,255,0.07);border-radius:100px;height:8px;overflow:hidden">
               <div style="height:100%;width:${pct}%;background:${isWinner ? 'var(--gold)' : 'var(--indigo-light)'};border-radius:100px;transition:width 0.5s"></div>
@@ -1498,15 +1519,17 @@ async function loadCabinetResults() {
       }).join('');
       return `<div style="margin-bottom:16px;border:1px solid var(--white-10);border-radius:var(--radius-md);overflow:hidden">
         <div style="padding:10px 16px;background:rgba(255,255,255,0.04);font-weight:600;display:flex;align-items:center;gap:8px">
-          <span>${pos.icon || '🏅'}</span><span>${pos.label}</span>
+          <span>${pos.icon || '&#x1F3C5;'}</span><span>${pos.label}</span>
+          ${maxVotes > 0 ? `<span class="badge badge-green" style="margin-left:auto">🏆 Winner declared</span>` : ''}
         </div>
         <table style="width:100%;border-radius:0">
-          <thead><tr><th>Candidate</th><th style="text-align:center">Votes</th><th>Progress</th></tr></thead>
+          <thead><tr><th>Candidate</th><th style="text-align:center">Votes</th><th>Share</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
       </div>`;
     }).join('');
-    container.innerHTML = html;
+
+    container.innerHTML = statHtml + posHtml;
   } catch(e) {
     container.innerHTML = `<div class="text-red text-sm" style="padding:16px;text-align:center">Error loading results: ${e.message}</div>`;
   }

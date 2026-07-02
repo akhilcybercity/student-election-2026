@@ -121,11 +121,12 @@ const API = {
 
   // Cabinet
   Cabinet: {
-    getWinners:   () => apiFetch('/api/cabinet/winners'),
-    setup:        () => apiFetch('/api/cabinet/setup', { method: 'POST' }),
-    getVoters:    () => apiFetch('/api/cabinet/voters'),
-    addVoter:     (student_id) => apiFetch('/api/cabinet/voters', { method: 'POST', body: JSON.stringify({ student_id }) }),
-    deleteVoter:  (studentId) => apiFetch(`/api/cabinet/voters/${studentId}`, { method: 'DELETE' }),
-    addAllVoters: () => apiFetch('/api/cabinet/voters/all', { method: 'POST' }),
+    getWinners:     () => apiFetch('/api/cabinet/winners'),
+    setup:          () => apiFetch('/api/cabinet/setup', { method: 'POST' }),
+    getVoters:      () => apiFetch('/api/cabinet/voters'),
+    addVoter:       (student_id) => apiFetch('/api/cabinet/voters', { method: 'POST', body: JSON.stringify({ student_id }) }),
+    deleteVoter:    (studentId)  => apiFetch(`/api/cabinet/voters/${studentId}`, { method: 'DELETE' }),
+    addAllVoters:   ()           => apiFetch('/api/cabinet/voters/all', { method: 'POST' }),
+    resetVoterVote: (studentId)  => apiFetch(`/api/cabinet/voters/${studentId}/vote`, { method: 'DELETE' }),
   },
 };

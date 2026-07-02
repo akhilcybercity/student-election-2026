@@ -509,7 +509,12 @@ const jsonDb = {
       const data = readData();
       let targetClasses = data.classes;
       if (classId) {
-        targetClasses = targetClasses.filter(c => c.id === classId);
+        if (classId === 'class-cabinet') {
+          // class-cabinet is virtual — inject a synthetic class object so the loop runs
+          targetClasses = [{ id: 'class-cabinet', name: 'Cabinet Election', course: 'All', year: null }];
+        } else {
+          targetClasses = targetClasses.filter(c => c.id === classId);
+        }
       }
 
       const results = [];
@@ -836,6 +841,11 @@ const jsonDb = {
     getVoters: async () => {
       const data = readData();
       data.cabinet_voters = data.cabinet_voters || [];
+      // Build a set of who voted in cabinet election
+      const cabinetVotedMap = {};
+      data.votes.filter(v => v.class_id === 'class-cabinet').forEach(v => {
+        if (!cabinetVotedMap[v.voter_id]) cabinetVotedMap[v.voter_id] = v.voted_at;
+      });
       const list = [];
       data.cabinet_voters.forEach(voterId => {
         const student = data.students.find(s => s.id === voterId);
@@ -847,7 +857,9 @@ const jsonDb = {
             roll_no: student.roll_no,
             gender: student.gender,
             class_name: cls ? cls.name : student.class_id,
-            year: cls ? cls.year : 0
+            year: cls ? cls.year : 0,
+            cabinet_has_voted: !!cabinetVotedMap[voterId],
+            cabinet_voted_at: cabinetVotedMap[voterId] || null
           });
         }
       });

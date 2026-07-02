@@ -209,4 +209,23 @@ router.post('/voters/all', requireAdmin, async (req, res) => {
   }
 });
 
+// DELETE /api/cabinet/voters/:studentId/vote — reset ONE voter's cabinet votes (allow re-vote)
+router.delete('/voters/:studentId/vote', requireAdmin, async (req, res) => {
+  try {
+    const { studentId } = req.params;
+    const isMySQL = !!process.env.DB_HOST;
+    if (isMySQL) {
+      const p = db.getPool();
+      await p.query("DELETE FROM votes WHERE voter_id = ? AND class_id = 'class-cabinet'", [studentId]);
+    } else {
+      const data = require('../db/jsonDb').readData();
+      data.votes = data.votes.filter(v => !(v.voter_id === studentId && v.class_id === 'class-cabinet'));
+      require('../db/jsonDb').writeData(data);
+    }
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 module.exports = router;
