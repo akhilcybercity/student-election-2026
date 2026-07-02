@@ -796,8 +796,8 @@
 .re-pos-card.re-hidden { display: none; }
 </style>
 
-<script src="js/api.js?v=20260702d"></script>
-<script src="js/admin.js?v=20260702d"></script>
+<script src="js/api.js?v=20260702e"></script>
+<script src="js/admin.js?v=20260702e"></script>
 
 <script>
 /* =========================================================
@@ -1152,10 +1152,10 @@ async function initCabinetPage() {
   await loadCabinetNominees();
   await loadCabinetVotersList();
 
-  // Auto-refresh voter list every 10 seconds while cabinet tab is open
+  // Auto-refresh voter list every 20 seconds while cabinet tab is open
   _cabinetPollTimer = setInterval(async () => {
     try { await loadCabinetVotersList(); } catch(e) { /* silent */ }
-  }, 10000);
+  }, 20000);
 
   // Populate student dropdowns for manual voter and nominee mapping
   try {

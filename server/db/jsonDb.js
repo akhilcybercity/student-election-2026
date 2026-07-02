@@ -470,7 +470,7 @@ const jsonDb = {
         }
       }
 
-      if (voter.is_absent) {
+      if (voter.is_absent && vote.class_id !== 'class-cabinet') {
         const err = new Error('You are marked as absent');
         err.code = 'is_absent';
         throw err;
