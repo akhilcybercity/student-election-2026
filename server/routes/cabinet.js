@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const db     = require('../db');
-const { requireAdmin } = require('../middleware/auth');
+const { requireAdmin, requireUser } = require('../middleware/auth');
 const { v4: uuidv4 } = require('uuid');
 
 // Helper to initialize Cabinet class and positions dynamically
@@ -65,7 +65,7 @@ async function ensureCabinetInit() {
 }
 
 // GET /api/cabinet/winners - returns calculated class winners
-router.get('/winners', requireAdmin, async (req, res) => {
+router.get('/winners', requireUser, async (req, res) => {
   try {
     const winners = await db.cabinet.getWinners();
     res.json(winners);
@@ -154,7 +154,7 @@ router.post('/setup', requireAdmin, async (req, res) => {
 });
 
 // GET /api/cabinet/voters - get current eligible voters
-router.get('/voters', requireAdmin, async (req, res) => {
+router.get('/voters', requireUser, async (req, res) => {
   try {
     const list = await db.cabinet.getVoters();
     res.json(list);
