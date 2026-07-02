@@ -176,8 +176,18 @@ router.post('/voters', requireAdmin, async (req, res) => {
 });
 
 // DELETE /api/cabinet/voters/:studentId - manually remove a voter
-router.delete('/voters/:studentId', requireAdmin, async (req, res) => {
+router.delete('/voters/:studentId', requireUser, async (req, res) => {
   try {
+    // Restrict staff to assigned classes
+    if (req.user && req.user.role === 'staff') {
+      const student = await db.students.get(req.params.studentId);
+      if (!student) return res.status(404).json({ error: 'Student not found' });
+      const assignedClasses = req.user.classes || [];
+      if (!assignedClasses.includes(student.class_id)) {
+        return res.status(403).json({ error: 'Forbidden: You cannot remove this voter.' });
+      }
+    }
+    
     await db.cabinet.deleteVoter(req.params.studentId);
     res.json({ success: true });
   } catch (e) {
@@ -210,9 +220,20 @@ router.post('/voters/all', requireAdmin, async (req, res) => {
 });
 
 // DELETE /api/cabinet/voters/:studentId/vote — reset ONE voter's cabinet votes (allow re-vote)
-router.delete('/voters/:studentId/vote', requireAdmin, async (req, res) => {
+router.delete('/voters/:studentId/vote', requireUser, async (req, res) => {
   try {
     const { studentId } = req.params;
+    
+    // Restrict staff to assigned classes
+    if (req.user && req.user.role === 'staff') {
+      const student = await db.students.get(studentId);
+      if (!student) return res.status(404).json({ error: 'Student not found' });
+      const assignedClasses = req.user.classes || [];
+      if (!assignedClasses.includes(student.class_id)) {
+        return res.status(403).json({ error: 'Forbidden: You cannot reset votes for this student.' });
+      }
+    }
+
     const isMySQL = !!process.env.DB_HOST;
     if (isMySQL) {
       const p = db.getPool();
