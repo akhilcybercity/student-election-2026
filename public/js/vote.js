@@ -103,14 +103,26 @@ async function loadActiveVoter(voter) {
   try {
     const sessionId = localStorage.getItem('ems_booth_session_id') || '1';
     const student = await API.Students.get(voter.studentId);
-    if (student.has_voted) {
-      // Voter already voted, clear selection on server and resume polling
+    const isCabinetVoter = voter.classId === 'class-cabinet';
+
+    // For standard elections: block if already voted in standard election
+    // For cabinet election: has_voted just means they voted in standard (which is expected!) — check separately
+    if (!isCabinetVoter && student.has_voted) {
+      // Voter already voted in standard election, clear selection and resume polling
       await API.Settings.clearActiveVoter(sessionId);
       startTerminalPolling();
       return;
     }
+
     const classes = await API.Classes.all();
-    const cls = classes.find(c => c.id === voter.classId);
+    // class-cabinet is a virtual class, it won't appear in the classes list
+    // Use a fallback descriptor for the ballot header
+    const cls = classes.find(c => c.id === voter.classId) || {
+      id: voter.classId,
+      name: 'Cabinet Election',
+      course: 'All Classes',
+      year: ''
+    };
 
     voteState.classId = voter.classId;
     voteState.studentId = voter.studentId;
@@ -120,7 +132,7 @@ async function loadActiveVoter(voter) {
 
     // ✅ Always reset submit button before loading next voter's ballot
     const submitBtn = document.getElementById('submit-vote-btn');
-    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = '✅ Submit Vote'; }
+    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = '\u2705 Submit Vote'; }
 
     showToast(`Identity verified: Welcome, ${student.name}!`, 'success');
     await buildBallot();
@@ -203,7 +215,8 @@ function showLookupError(msg) {
 async function buildBallot() {
   const { classId, student, cls } = voteState;
   document.getElementById('voter-name').textContent = student.name;
-  document.getElementById('voter-meta').textContent = `${cls.name} · ${cls.course} · ${student.gender}`;
+  // cls may be a virtual placeholder for class-cabinet
+  document.getElementById('voter-meta').textContent = `${cls ? cls.name : 'Cabinet Election'} · ${cls ? cls.course : 'All Reps'} · ${student.gender}`;
   // Reset submit button every time a new ballot is built
   const submitBtn = document.getElementById('submit-vote-btn');
   if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = '\u2705 Submit Vote'; }
