@@ -796,8 +796,8 @@
 .re-pos-card.re-hidden { display: none; }
 </style>
 
-<script src="js/api.js"></script>
-<script src="js/admin.js"></script>
+<script src="js/api.js?v=20260702b"></script>
+<script src="js/admin.js?v=20260702b"></script>
 
 <script>
 /* =========================================================
@@ -1424,20 +1424,15 @@ async function activateCabinetVoter(studentId, name) {
     const select = document.getElementById('cabinet-session-select');
     const sessionId = select.value;
     
-    // Check if session is mapped to cabinet mode first
-    const session = await apiFetch(`/api/settings/sessions/${sessionId}`);
-    if (!session || session.re_election_class_id !== 'class-cabinet') {
-      showToast(`Please enable Cabinet Mode for Session ${sessionId} first!`, 'error');
-      return;
-    }
-
+    // Directly activate the voter for cabinet election.
+    // classId='class-cabinet' tells the voting booth to show the cabinet ballot.
     await API.Settings.setActiveVoter({
       studentId,
       classId: 'class-cabinet',
       name,
       sessionId
     });
-    showToast(`Booth Session ${sessionId} activated for Cabinet Voter "${name}"! 🗳️`, 'success');
+    showToast(`🗳️ Booth Session ${sessionId} activated for Cabinet Voter "${name}"!`, 'success');
   } catch (e) {
     showToast(e.message, 'error');
   }
