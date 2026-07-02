@@ -832,6 +832,49 @@ const jsonDb = {
         });
       });
       return winners;
+    },
+    getVoters: async () => {
+      const data = readData();
+      data.cabinet_voters = data.cabinet_voters || [];
+      const list = [];
+      data.cabinet_voters.forEach(voterId => {
+        const student = data.students.find(s => s.id === voterId);
+        if (student) {
+          const cls = data.classes.find(c => c.id === student.class_id);
+          list.push({
+            student_id: voterId,
+            name: student.name,
+            roll_no: student.roll_no,
+            gender: student.gender,
+            class_name: cls ? cls.name : student.class_id,
+            year: cls ? cls.year : 0
+          });
+        }
+      });
+      list.sort((a,b) => a.name.localeCompare(b.name));
+      return list;
+    },
+    addVoter: async (studentId) => {
+      const data = readData();
+      data.cabinet_voters = data.cabinet_voters || [];
+      if (!data.cabinet_voters.includes(studentId)) {
+        data.cabinet_voters.push(studentId);
+        writeData(data);
+      }
+      return true;
+    },
+    deleteVoter: async (studentId) => {
+      const data = readData();
+      data.cabinet_voters = data.cabinet_voters || [];
+      data.cabinet_voters = data.cabinet_voters.filter(id => id !== studentId);
+      writeData(data);
+      return true;
+    },
+    clearVoters: async () => {
+      const data = readData();
+      data.cabinet_voters = [];
+      writeData(data);
+      return true;
     }
   }
 };

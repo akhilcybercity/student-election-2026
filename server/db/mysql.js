@@ -32,6 +32,13 @@ function getPool() {
     pool.query('ALTER TABLE sessions ADD COLUMN re_election_position_id VARCHAR(36) DEFAULT NULL').catch(()=>{});
     // Add photo column to candidates
     pool.query('ALTER TABLE candidates ADD COLUMN photo VARCHAR(255) DEFAULT NULL').catch(()=>{});
+    // Add cabinet_voters table
+    pool.query(`
+      CREATE TABLE IF NOT EXISTS cabinet_voters (
+        student_id VARCHAR(36) PRIMARY KEY,
+        FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
+      )
+    `).catch(()=>{});
   }
   return pool;
 }
@@ -779,6 +786,32 @@ const mysqlDb = {
         }
       }
       return winners;
+    },
+    getVoters: async () => {
+      const p = getPool();
+      const [rows] = await p.query(`
+        SELECT cv.student_id, s.name, s.roll_no, s.gender, c.name AS class_name, c.year
+        FROM cabinet_voters cv
+        JOIN students s ON cv.student_id = s.id
+        JOIN classes c ON s.class_id = c.id
+        ORDER BY s.name
+      `);
+      return rows;
+    },
+    addVoter: async (studentId) => {
+      const p = getPool();
+      await p.query("INSERT IGNORE INTO cabinet_voters (student_id) VALUES (?)", [studentId]);
+      return true;
+    },
+    deleteVoter: async (studentId) => {
+      const p = getPool();
+      await p.query("DELETE FROM cabinet_voters WHERE student_id = ?", [studentId]);
+      return true;
+    },
+    clearVoters: async () => {
+      const p = getPool();
+      await p.query("DELETE FROM cabinet_voters");
+      return true;
     }
   }
 };

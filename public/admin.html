@@ -529,6 +529,29 @@
         <!-- Left: Nominees Grouped by Cabinet Position -->
         <div class="glass" style="padding:20px;border-radius:var(--radius-lg)">
           <h3 class="font-semi" style="margin-bottom:16px">🏆 Mapped Cabinet Nominees</h3>
+          
+          <!-- Manual Nominee Addition Form -->
+          <div style="margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid var(--white-10)">
+            <h4 class="text-sm font-semi" style="margin-bottom:8px;color:var(--gold)">➕ Add Nominee Manually</h4>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <select id="cabinet-add-pos-select" class="form-select" style="font-size:0.85rem">
+                <option value="">— Select Cabinet Position —</option>
+                <option value="pos-cabinet-chairperson">👑 Chairperson (2nd Year)</option>
+                <option value="pos-cabinet-vice-chairperson">🥈 Vice Chairperson (1st Year)</option>
+                <option value="pos-cabinet-sports-sec">⚽ Sports Secretary (2nd Year)</option>
+                <option value="pos-cabinet-sports-jsec">👟 Sports Joint Secretary (1st Year)</option>
+                <option value="pos-cabinet-cult-sec">🎭 Cultural Secretary (2nd Year)</option>
+                <option value="pos-cabinet-cult-jsec">🎷 Cultural Joint Secretary (1st Year)</option>
+              </select>
+              <div style="display:flex;gap:8px">
+                <select id="cabinet-add-student-select" class="form-select" style="font-size:0.85rem;flex:1">
+                  <option value="">— Select Student —</option>
+                </select>
+                <button class="btn btn-primary btn-sm" onclick="addCabinetNomineeManually()">Add Nominee</button>
+              </div>
+            </div>
+          </div>
+
           <div id="cabinet-nominees-container" style="display:flex;flex-direction:column;gap:16px;max-height:600px;overflow-y:auto;padding-right:8px">
             <!-- Nominees loaded here -->
           </div>
@@ -538,8 +561,20 @@
         <div class="glass" style="padding:20px;border-radius:var(--radius-lg)">
           <div style="display:flex;justify-content:between;align-items:center;margin-bottom:16px">
             <h3 class="font-semi">👥 Eligible Voters (Elected Reps)</h3>
-            <button class="btn btn-ghost btn-sm" onclick="loadCabinetVotersList()" style="font-size:0.8rem">🔄 Refresh List</button>
+            <button class="btn btn-ghost btn-sm" onclick="loadCabinetVotersList()" style="font-size:0.8rem;margin-left:auto">🔄 Refresh List</button>
           </div>
+
+          <!-- Manual Voter Addition Form -->
+          <div style="margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid var(--white-10)">
+            <h4 class="text-sm font-semi" style="margin-bottom:8px;color:var(--gold)">➕ Add Voter Manually</h4>
+            <div style="display:flex;gap:8px">
+              <select id="cabinet-add-voter-select" class="form-select" style="font-size:0.85rem;flex:1">
+                <option value="">— Select Student to Make Voter —</option>
+              </select>
+              <button class="btn btn-primary btn-sm" onclick="addCabinetVoterManually()">Add Voter</button>
+            </div>
+          </div>
+
           <div class="table-wrap" style="max-height:600px;overflow-y:auto">
             <table>
               <thead>
@@ -1086,6 +1121,24 @@ async function initCabinetPage() {
   await loadCabinetSessionStatus();
   await loadCabinetNominees();
   await loadCabinetVotersList();
+
+  // Populate student dropdowns for manual voter and nominee mapping
+  try {
+    const students = await API.Students.all();
+    students.sort((a, b) => a.name.localeCompare(b.name));
+    
+    const nomineeSelect = document.getElementById('cabinet-add-student-select');
+    const voterSelect = document.getElementById('cabinet-add-voter-select');
+    
+    const optionsHtml = '<option value="">— Select Student —</option>' + 
+      students.map(s => `<option value="${s.id}">${s.name} (${s.class_name || s.class_id})</option>`).join('');
+      
+    nomineeSelect.innerHTML = optionsHtml;
+    voterSelect.innerHTML = '<option value="">— Select Student to Make Voter —</option>' + 
+      students.map(s => `<option value="${s.id}">${s.name} (${s.class_name || s.class_id})</option>`).join('');
+  } catch (e) {
+    console.error('Error populating student selects:', e);
+  }
 }
 window.initCabinetPage = initCabinetPage;
 
@@ -1106,6 +1159,73 @@ async function setupCabinetCandidates() {
   );
 }
 window.setupCabinetCandidates = setupCabinetCandidates;
+
+async function addCabinetNomineeManually() {
+  const posId = document.getElementById('cabinet-add-pos-select').value;
+  const studentId = document.getElementById('cabinet-add-student-select').value;
+  if (!posId || !studentId) {
+    showToast('Please select both position and student.', 'error');
+    return;
+  }
+  try {
+    await API.Candidates.add({ student_id: studentId, class_id: 'class-cabinet', position_id: posId });
+    showToast('Nominee added successfully! ✅', 'success');
+    await loadCabinetNominees();
+  } catch (e) {
+    showToast(e.message, 'error');
+  }
+}
+window.addCabinetNomineeManually = addCabinetNomineeManually;
+
+async function deleteCabinetNominee(candId) {
+  showConfirm(
+    '❌ Remove Nominee',
+    'Are you sure you want to remove this candidate from the cabinet nominees?',
+    async () => {
+      try {
+        await API.Candidates.delete(candId);
+        showToast('Nominee removed.', 'warning');
+        await loadCabinetNominees();
+      } catch (e) {
+        showToast(e.message, 'error');
+      }
+    }
+  );
+}
+window.deleteCabinetNominee = deleteCabinetNominee;
+
+async function addCabinetVoterManually() {
+  const studentId = document.getElementById('cabinet-add-voter-select').value;
+  if (!studentId) {
+    showToast('Please select a student first.', 'error');
+    return;
+  }
+  try {
+    await API.Cabinet.addVoter(studentId);
+    showToast('Voter added successfully! ✅', 'success');
+    await loadCabinetVotersList();
+  } catch (e) {
+    showToast(e.message, 'error');
+  }
+}
+window.addCabinetVoterManually = addCabinetVoterManually;
+
+async function deleteCabinetVoter(studentId, name) {
+  showConfirm(
+    '❌ Remove Voter',
+    `Are you sure you want to remove "${name}" from the Cabinet Voters?`,
+    async () => {
+      try {
+        await API.Cabinet.deleteVoter(studentId);
+        showToast('Voter removed.', 'warning');
+        await loadCabinetVotersList();
+      } catch (e) {
+        showToast(e.message, 'error');
+      }
+    }
+  );
+}
+window.deleteCabinetVoter = deleteCabinetVoter;
 
 async function loadCabinetNominees() {
   const container = document.getElementById('cabinet-nominees-container');
@@ -1140,6 +1260,7 @@ async function loadCabinetNominees() {
                 <div class="text-sm font-semi">${stud ? stud.name : 'Unknown'}</div>
                 <div style="font-size:0.75rem;color:var(--white-50)">Winner of: ${stud ? (stud.class_name || stud.class_id) : 'Unknown'}</div>
               </div>
+              <button class="btn btn-ghost btn-sm" onclick="deleteCabinetNominee('${c.id}')" style="color:var(--red);padding:2px 6px" title="Delete Nominee">✕</button>
             </div>`;
           }).join('')
         : '<div class="text-muted text-xs" style="padding:4px 10px">No nominees synced yet for this position</div>';
@@ -1163,14 +1284,13 @@ async function loadCabinetVotersList() {
   tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted" style="padding:20px">Loading eligible voters...</td></tr>';
   
   try {
-    const [winners, votes] = await Promise.all([
-      API.Cabinet.getWinners(),
-      apiFetch('/api/votes/results?classId=class-cabinet').catch(() => []) // fetches cabinet votes
+    const [voters, votes] = await Promise.all([
+      API.Cabinet.getVoters(),
+      apiFetch('/api/votes/results?classId=class-cabinet').catch(() => [])
     ]);
-    cabinetWinners = winners;
     
     // Calculate total voters and voted counts for stats
-    const totalVoters = winners.length;
+    const totalVoters = voters.length;
     
     // Fetch stats of class-cabinet
     let votedCount = 0;
@@ -1182,20 +1302,13 @@ async function loadCabinetVotersList() {
     document.getElementById('cab-stat-voters').textContent = totalVoters;
     document.getElementById('cab-stat-voted').textContent = votedCount;
 
-    if (winners.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted" style="padding:20px">No winners calculated. Complete the main elections first!</td></tr>';
+    if (voters.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted" style="padding:20px">No eligible voters mapped yet. Click "Sync Winners to Cabinet Nominees" or add voters manually.</td></tr>';
       return;
     }
 
-    tbody.innerHTML = winners.map(w => {
-      // Show won position
-      const wonPos = w.position_id === 'pos-cr-boy' ? 'Class Rep (Boy)' :
-                     w.position_id === 'pos-cr-girl' ? 'Class Rep (Girl)' :
-                     w.position_id === 'pos-sports-boy' ? 'Sports Rep (Boy)' :
-                     w.position_id === 'pos-sports-girl' ? 'Sports Rep (Girl)' :
-                     w.position_id === 'pos-cultural-boy' ? 'Cultural Rep (Boy)' :
-                     w.position_id === 'pos-cultural-girl' ? 'Cultural Rep (Girl)' : w.position_id;
-                     
+    tbody.innerHTML = voters.map(w => {
+      const wonPos = w.year ? (parseInt(w.year) === 2 ? '2nd Year Rep' : '1st Year Rep') : 'Elected Rep';
       const statusBadge = `<span class="badge badge-gray">Eligible</span>`;
       
       return `<tr>
@@ -1206,7 +1319,10 @@ async function loadCabinetVotersList() {
         <td><span class="badge badge-indigo">${wonPos}</span></td>
         <td>${statusBadge}</td>
         <td>
-          <button class="btn btn-gold btn-sm" onclick="activateCabinetVoter('${w.student_id}', '${w.name.replace(/'/g, "\\'")}')">🗳️ Activate Booth</button>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-gold btn-sm" onclick="activateCabinetVoter('${w.student_id}', '${w.name.replace(/'/g, "\\'")}')">🗳️ Activate</button>
+            <button class="btn btn-ghost btn-sm" onclick="deleteCabinetVoter('${w.student_id}', '${w.name.replace(/'/g, "\\'")}')" style="color:var(--red)">Remove</button>
+          </div>
         </td>
       </tr>`;
     }).join('');

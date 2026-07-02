@@ -95,7 +95,13 @@ router.post('/setup', requireAdmin, async (req, res) => {
     let insertedCount = 0;
     const errors = [];
 
+    // Clear and sync voters
+    await db.cabinet.clearVoters();
+
     for (const w of winners) {
+      // Add voter
+      await db.cabinet.addVoter(w.student_id);
+
       let cabinetPosId = null;
       
       const isClassRep = w.position_id === 'pos-cr-boy' || w.position_id === 'pos-cr-girl';
@@ -142,6 +148,38 @@ router.post('/setup', requireAdmin, async (req, res) => {
     }
 
     res.json({ success: true, candidatesRegistered: insertedCount, errors });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/cabinet/voters - get current eligible voters
+router.get('/voters', requireAdmin, async (req, res) => {
+  try {
+    const list = await db.cabinet.getVoters();
+    res.json(list);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/cabinet/voters - manually add a voter
+router.post('/voters', requireAdmin, async (req, res) => {
+  try {
+    const { student_id } = req.body;
+    if (!student_id) return res.status(400).json({ error: 'student_id is required' });
+    await db.cabinet.addVoter(student_id);
+    res.status(201).json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// DELETE /api/cabinet/voters/:studentId - manually remove a voter
+router.delete('/voters/:studentId', requireAdmin, async (req, res) => {
+  try {
+    await db.cabinet.deleteVoter(req.params.studentId);
+    res.json({ success: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
