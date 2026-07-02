@@ -30,9 +30,12 @@ function getPool() {
     // Dyn alter table sessions to add re_election fields if they don't exist
     pool.query('ALTER TABLE sessions ADD COLUMN re_election_class_id VARCHAR(36) DEFAULT NULL').catch(()=>{});
     pool.query('ALTER TABLE sessions ADD COLUMN re_election_position_id VARCHAR(36) DEFAULT NULL').catch(()=>{});
-    // Add photo column to candidates and students
+    // Add photo column to candidates and students (VARCHAR first, upgrade to MEDIUMTEXT for base64 storage)
     pool.query('ALTER TABLE candidates ADD COLUMN photo VARCHAR(255) DEFAULT NULL').catch(()=>{});
-    pool.query('ALTER TABLE students ADD COLUMN photo VARCHAR(255) DEFAULT NULL').catch(()=>{});
+    pool.query('ALTER TABLE students    ADD COLUMN photo VARCHAR(255) DEFAULT NULL').catch(()=>{});
+    // Upgrade photo columns to MEDIUMTEXT so base64 data URLs (100k+ chars) fit without truncation
+    pool.query('ALTER TABLE students    MODIFY COLUMN photo MEDIUMTEXT').catch(()=>{});
+    pool.query('ALTER TABLE candidates  MODIFY COLUMN photo MEDIUMTEXT').catch(()=>{});
     // Add cabinet_voters table
     pool.query(`
       CREATE TABLE IF NOT EXISTS cabinet_voters (

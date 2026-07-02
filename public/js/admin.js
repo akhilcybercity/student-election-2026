@@ -127,6 +127,8 @@ function navigateTo(page) {
   if (section) { section.style.display='block'; section.classList.remove('fade-in'); void section.offsetWidth; section.classList.add('fade-in'); }
   const titles = { dashboard:'Dashboard', classes:'Manage Classes', students:'Manage Students', candidates:'Manage Candidates', positions:'Manage Positions', absent:'Mark Absent / Present', results:'Election Results', settings:'Settings', staff:'Staff & Sessions', reelection:'Re-Election — Selective Reset', cabinet:'👑 Cabinet Election' };
   document.getElementById('topbar-title').textContent = titles[page] || page;
+  // Stop cabinet auto-refresh when leaving the cabinet tab
+  if (page !== 'cabinet' && window.stopCabinetPoll) window.stopCabinetPoll();
   switch(page) {
     case 'dashboard':   renderDashboard();     break;
     case 'classes':     renderClasses();       break;

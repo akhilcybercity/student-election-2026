@@ -796,8 +796,8 @@
 .re-pos-card.re-hidden { display: none; }
 </style>
 
-<script src="js/api.js?v=20260702c"></script>
-<script src="js/admin.js?v=20260702c"></script>
+<script src="js/api.js?v=20260702d"></script>
+<script src="js/admin.js?v=20260702d"></script>
 
 <script>
 /* =========================================================
@@ -1139,10 +1139,23 @@ window.saveSessionMapping = saveSessionMapping;
 // --- Cabinet Election Admin functions ---
 let cabinetWinners = [];
 
+// Cabinet voters list auto-refresh poll
+let _cabinetPollTimer = null;
+
+function stopCabinetPoll() {
+  if (_cabinetPollTimer) { clearInterval(_cabinetPollTimer); _cabinetPollTimer = null; }
+}
+
 async function initCabinetPage() {
+  stopCabinetPoll(); // clear any existing poll first
   await loadCabinetSessionStatus();
   await loadCabinetNominees();
   await loadCabinetVotersList();
+
+  // Auto-refresh voter list every 10 seconds while cabinet tab is open
+  _cabinetPollTimer = setInterval(async () => {
+    try { await loadCabinetVotersList(); } catch(e) { /* silent */ }
+  }, 10000);
 
   // Populate student dropdowns for manual voter and nominee mapping
   try {
@@ -1150,19 +1163,20 @@ async function initCabinetPage() {
     students.sort((a, b) => a.name.localeCompare(b.name));
     
     const nomineeSelect = document.getElementById('cabinet-add-student-select');
-    const voterSelect = document.getElementById('cabinet-add-voter-select');
+    const voterSelect   = document.getElementById('cabinet-add-voter-select');
     
     const optionsHtml = '<option value="">— Select Student —</option>' + 
       students.map(s => `<option value="${s.id}">${s.name} (${s.class_name || s.class_id})</option>`).join('');
       
     nomineeSelect.innerHTML = optionsHtml;
-    voterSelect.innerHTML = '<option value="">— Select Student to Make Voter —</option>' + 
+    voterSelect.innerHTML   = '<option value="">— Select Student to Make Voter —</option>' + 
       students.map(s => `<option value="${s.id}">${s.name} (${s.class_name || s.class_id})</option>`).join('');
   } catch (e) {
     console.error('Error populating student selects:', e);
   }
 }
 window.initCabinetPage = initCabinetPage;
+window.stopCabinetPoll = stopCabinetPoll;
 
 async function setupCabinetCandidates() {
   showConfirm(
@@ -1433,6 +1447,8 @@ async function activateCabinetVoter(studentId, name) {
       sessionId
     });
     showToast(`🗳️ Booth Session ${sessionId} activated for Cabinet Voter "${name}"!`, 'success');
+    // Refresh the voter list immediately so status stays in sync
+    setTimeout(() => loadCabinetVotersList(), 500);
   } catch (e) {
     showToast(e.message, 'error');
   }
