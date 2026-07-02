@@ -69,7 +69,21 @@ router.post('/active-voter', requireUser, async (req, res) => {
   // If the logged-in user is a Staff member, verify they manage this student's class
   if (req.user && req.user.role === 'staff') {
     const assignedClasses = req.user.classes || [];
-    if (!assignedClasses.includes(classId)) {
+    let checkClassId = classId;
+    
+    // For cabinet elections, verify the student's actual class instead of the virtual 'class-cabinet'
+    if (classId === 'class-cabinet') {
+      try {
+        const student = await db.students.get(studentId);
+        if (student) {
+          checkClassId = student.class_id;
+        }
+      } catch (e) {
+        // Fall back to original classId if fetch fails
+      }
+    }
+
+    if (!assignedClasses.includes(checkClassId)) {
       return res.status(403).json({ error: 'Forbidden: You are not assigned to manage this student\'s class.' });
     }
   }
