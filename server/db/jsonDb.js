@@ -853,6 +853,7 @@ const jsonDb = {
           const cls = data.classes.find(c => c.id === student.class_id);
           list.push({
             student_id: voterId,
+            class_id: student.class_id,
             name: student.name,
             roll_no: student.roll_no,
             gender: student.gender,

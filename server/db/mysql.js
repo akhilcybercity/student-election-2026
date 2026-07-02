@@ -794,14 +794,14 @@ const mysqlDb = {
     getVoters: async () => {
       const p = getPool();
       const [rows] = await p.query(`
-        SELECT cv.student_id, s.name, s.roll_no, s.gender, c.name AS class_name, c.year,
+        SELECT cv.student_id, s.class_id, s.name, s.roll_no, s.gender, c.name AS class_name, c.year,
                CASE WHEN COUNT(v.voter_id) > 0 THEN 1 ELSE 0 END AS cabinet_has_voted,
                MIN(v.voted_at) AS cabinet_voted_at
         FROM cabinet_voters cv
         JOIN students s ON cv.student_id = s.id
         JOIN classes c ON s.class_id = c.id
         LEFT JOIN votes v ON v.voter_id = cv.student_id AND v.class_id = 'class-cabinet'
-        GROUP BY cv.student_id, s.name, s.roll_no, s.gender, c.name, c.year
+        GROUP BY cv.student_id, s.class_id, s.name, s.roll_no, s.gender, c.name, c.year
         ORDER BY s.name
       `);
       return rows;

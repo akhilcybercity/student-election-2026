@@ -83,7 +83,7 @@
       <button class="nav-item" data-page="cabinet"    onclick="navigateTo('cabinet')"><span class="nav-icon">👑</span> Cabinet Election</button>
 
       <div class="nav-section-title">Reports</div>
-      <button class="nav-item" data-page="results"   onclick="navigateTo('results')"><span class="nav-icon">🏆</span> Results</button>
+      <button class="nav-item admin-only" data-page="results"   onclick="navigateTo('results')"><span class="nav-icon">🏆</span> Results</button>
 
       <div class="nav-section-title">System</div>
       <button class="nav-item admin-only" data-page="settings"  onclick="navigateTo('settings')"><span class="nav-icon">⚙️</span> Settings</button>
@@ -796,8 +796,8 @@
 .re-pos-card.re-hidden { display: none; }
 </style>
 
-<script src="js/api.js?v=20260703b"></script>
-<script src="js/admin.js?v=20260703b"></script>
+<script src="js/api.js?v=20260703c"></script>
+<script src="js/admin.js?v=20260703c"></script>
 
 <script>
 /* =========================================================
@@ -1351,7 +1351,17 @@ async function loadCabinetVotersList() {
   tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted" style="padding:20px">Loading eligible voters...</td></tr>';
   
   try {
-    const voters = await API.Cabinet.getVoters();
+    let voters = await API.Cabinet.getVoters();
+    
+    // Filter by assigned classes for staff
+    const role = sessionStorage.getItem('ems_role') || 'admin';
+    if (role === 'staff') {
+      let assignedClasses = [];
+      try {
+        assignedClasses = JSON.parse(sessionStorage.getItem('ems_classes') || '[]');
+      } catch(e) {}
+      voters = voters.filter(v => assignedClasses.includes(v.class_id));
+    }
     
     const totalVoters = voters.length;
     const votedCount  = voters.filter(v => v.cabinet_has_voted).length;

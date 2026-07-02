@@ -112,7 +112,7 @@ async function toggleElection() {
 let currentPage = 'dashboard';
 function navigateTo(page) {
   const role = sessionStorage.getItem('ems_role') || 'admin';
-  const adminOnlyPages = ['positions', 'candidates', 'staff', 'settings', 'reelection'];
+  const adminOnlyPages = ['positions', 'candidates', 'staff', 'settings', 'reelection', 'results'];
   if (role === 'staff' && adminOnlyPages.includes(page)) {
     showToast('Access Denied. Admin only.', 'error');
     return;
