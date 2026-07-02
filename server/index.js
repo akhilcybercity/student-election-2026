@@ -42,6 +42,7 @@ app.use('/api/students',   require('./routes/students'));
 app.use('/api/candidates', require('./routes/candidates'));
 app.use('/api/staff',      require('./routes/staff'));
 app.use('/api/votes',      require('./routes/votes'));
+app.use('/api/cabinet',    require('./routes/cabinet'));
 
 // ─── Deployment label (used in health check + startup log) ──────────
 const DEPLOYMENT = process.env.RAILWAY_ENVIRONMENT

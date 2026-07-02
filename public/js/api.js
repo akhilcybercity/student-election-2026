@@ -116,4 +116,10 @@ const API = {
     stats:   ()          => apiFetch('/api/votes/stats'),
     reset:   ()          => apiFetch('/api/votes/reset',   { method:'DELETE' }),
   },
+
+  // Cabinet
+  Cabinet: {
+    getWinners: () => apiFetch('/api/cabinet/winners'),
+    setup:      () => apiFetch('/api/cabinet/setup', { method: 'POST' }),
+  },
 };

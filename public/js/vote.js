@@ -217,10 +217,16 @@ async function buildBallot() {
       apiFetch(`/api/settings/sessions/${sessionId}`).catch(() => null)
     ]);
 
-    // Filter to only show the mapped re-election position if re-election mapping is active for this session + class
+    // Filter out Cabinet positions vs Standard positions first
     let displayPositions = positions;
-    if (sessionInfo && sessionInfo.re_election_class_id === classId && sessionInfo.re_election_position_id) {
-      displayPositions = positions.filter(p => p.id === sessionInfo.re_election_position_id);
+    if (classId === 'class-cabinet') {
+      displayPositions = positions.filter(p => p.id.startsWith('pos-cabinet-'));
+    } else {
+      displayPositions = positions.filter(p => !p.id.startsWith('pos-cabinet-'));
+      // Further filter to only show the mapped re-election position if active
+      if (sessionInfo && sessionInfo.re_election_class_id === classId && sessionInfo.re_election_position_id) {
+        displayPositions = displayPositions.filter(p => p.id === sessionInfo.re_election_position_id);
+      }
     }
 
     container.innerHTML = '';

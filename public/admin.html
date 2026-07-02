@@ -80,6 +80,7 @@
       <button class="nav-item" data-page="absent"     onclick="navigateTo('absent')"><span class="nav-icon">🚫</span> Mark Absent</button>
       <button class="nav-item admin-only" data-page="staff"      onclick="navigateTo('staff')"><span class="nav-icon">👤</span> Staff & Sessions</button>
       <button class="nav-item admin-only" data-page="reelection" onclick="navigateTo('reelection')"><span class="nav-icon">🔄</span> Re-Election</button>
+      <button class="nav-item admin-only" data-page="cabinet"    onclick="navigateTo('cabinet')"><span class="nav-icon">👑</span> Cabinet Election</button>
 
       <div class="nav-section-title">Reports</div>
       <button class="nav-item" data-page="results"   onclick="navigateTo('results')"><span class="nav-icon">🏆</span> Results</button>
@@ -465,6 +466,98 @@
         <div id="re-unlock-result" style="margin-top:12px;display:none" class="alert" style="background:rgba(16,185,129,0.1)"></div>
       </div>
 
+    </div>
+
+    <!-- CABINET ELECTION -->
+    <div id="page-cabinet" class="page-content page-section" style="display:none">
+      <div class="section-header">
+        <div class="section-title">👑 Cabinet Election Management</div>
+        <button class="btn btn-primary" onclick="setupCabinetCandidates()">⚙️ Sync Winners to Cabinet Nominees</button>
+      </div>
+
+      <div class="alert alert-info" style="margin-bottom:24px">
+        ℹ️ <strong>Rules:</strong> The cabinet election allows <strong>only the elected class-level representatives</strong> to vote and contest.
+        First-year winners contest for Joint Secretary roles, and second-year winners contest for Secretary/Chairperson roles.
+      </div>
+
+      <!-- Session Mapping & Status Grid -->
+      <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:24px;margin-bottom:24px">
+        
+        <!-- Mapped Sessions Card -->
+        <div class="glass" style="padding:20px;border-radius:var(--radius-lg)">
+          <h3 class="font-semi" style="margin-bottom:12px">🔄 Map Cabinet Election to Session</h3>
+          <p class="text-sm text-muted" style="margin-bottom:16px">
+            Map a Session (1, 2, or 3) to the Cabinet Election. When mapped, students voting on that session's terminal will <strong>only</strong> see the Cabinet Ballot.
+          </p>
+          <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+            <div class="form-group" style="flex:1;min-width:180px">
+              <label class="form-label">Select Session</label>
+              <select id="cabinet-session-select" class="form-select" onchange="loadCabinetSessionStatus()">
+                <option value="1">Session 1</option>
+                <option value="2">Session 2</option>
+                <option value="3">Session 3</option>
+              </select>
+            </div>
+            <div style="margin-top:20px;display:flex;gap:10px">
+              <button class="btn btn-primary" onclick="mapCabinetToSession(true)">Enable Cabinet Mode</button>
+              <button class="btn btn-ghost" onclick="mapCabinetToSession(false)">Disable Cabinet Mode</button>
+            </div>
+          </div>
+          <div id="cabinet-session-status" style="margin-top:12px;font-size:0.85rem;color:var(--gold);font-weight:600"></div>
+        </div>
+
+        <!-- Quick Stats Card -->
+        <div class="glass" style="padding:20px;border-radius:var(--radius-lg);display:flex;flex-direction:column;justify-content:center">
+          <h3 class="font-semi" style="margin-bottom:10px">📊 Cabinet Status</h3>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+            <div>
+              <div class="stat-value" id="cab-stat-voters" style="color:var(--indigo-light)">0</div>
+              <div class="stat-label">Total Voters (Winners)</div>
+            </div>
+            <div>
+              <div class="stat-value" id="cab-stat-voted" style="color:#34d399">0</div>
+              <div class="stat-label">Voted in Cabinet</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Main Layout: Split Columns -->
+      <div style="display:grid;grid-template-columns:1fr 1.2fr;gap:24px">
+        
+        <!-- Left: Nominees Grouped by Cabinet Position -->
+        <div class="glass" style="padding:20px;border-radius:var(--radius-lg)">
+          <h3 class="font-semi" style="margin-bottom:16px">🏆 Mapped Cabinet Nominees</h3>
+          <div id="cabinet-nominees-container" style="display:flex;flex-direction:column;gap:16px;max-height:600px;overflow-y:auto;padding-right:8px">
+            <!-- Nominees loaded here -->
+          </div>
+        </div>
+
+        <!-- Right: Elected Reps (Voters List & Activation) -->
+        <div class="glass" style="padding:20px;border-radius:var(--radius-lg)">
+          <div style="display:flex;justify-content:between;align-items:center;margin-bottom:16px">
+            <h3 class="font-semi">👥 Eligible Voters (Elected Reps)</h3>
+            <button class="btn btn-ghost btn-sm" onclick="loadCabinetVotersList()" style="font-size:0.8rem">🔄 Refresh List</button>
+          </div>
+          <div class="table-wrap" style="max-height:600px;overflow-y:auto">
+            <table>
+              <thead>
+                <tr>
+                  <th>Voter Name</th>
+                  <th>Won Class Post</th>
+                  <th>Cabinet Voted</th>
+                  <th>Booth Actions</th>
+                </tr>
+              </thead>
+              <tbody id="cabinet-voters-tbody">
+                <!-- Voters loaded here -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
     </div>
 
   </div><!-- /main-content -->
@@ -985,6 +1078,212 @@ async function saveSessionMapping() {
   }
 }
 window.saveSessionMapping = saveSessionMapping;
+
+// --- Cabinet Election Admin functions ---
+let cabinetWinners = [];
+
+async function initCabinetPage() {
+  await loadCabinetSessionStatus();
+  await loadCabinetNominees();
+  await loadCabinetVotersList();
+}
+window.initCabinetPage = initCabinetPage;
+
+async function setupCabinetCandidates() {
+  showConfirm(
+    '⚙️ Sync Nominees from Winners',
+    'This will recalculate all standard class-level winners and set them as cabinet election nominees automatically. Any existing cabinet nominees will be replaced. Standard votes are fully safe.',
+    async () => {
+      try {
+        const res = await API.Cabinet.setup();
+        showToast(`Setup successful! Registered ${res.candidatesRegistered} cabinet nominees.`, 'success');
+        await loadCabinetNominees();
+        await loadCabinetVotersList();
+      } catch (e) {
+        showToast('Nominee setup failed: ' + e.message, 'error');
+      }
+    }
+  );
+}
+window.setupCabinetCandidates = setupCabinetCandidates;
+
+async function loadCabinetNominees() {
+  const container = document.getElementById('cabinet-nominees-container');
+  container.innerHTML = '<div class="text-muted text-sm" style="padding:10px">Loading cabinet nominees...</div>';
+  
+  try {
+    const [positions, candidates, students] = await Promise.all([
+      API.Positions.all(),
+      API.Candidates.byClass('class-cabinet'),
+      API.Students.all()
+    ]);
+    
+    const cabinetPositions = positions.filter(p => p.id.startsWith('pos-cabinet-'));
+    
+    if (cabinetPositions.length === 0) {
+      container.innerHTML = '<div class="text-muted text-sm" style="padding:10px">Cabinet positions not initialized yet. Please click the Sync Winners button above.</div>';
+      return;
+    }
+
+    container.innerHTML = cabinetPositions.map(pos => {
+      const posCandidates = candidates.filter(c => c.position_id === pos.id);
+      
+      const nomineeListHtml = posCandidates.length > 0
+        ? posCandidates.map(c => {
+            const stud = students.find(s => s.id === c.student_id);
+            return `<div style="display:flex;align-items:center;gap:10px;padding:6px 12px;background:rgba(255,255,255,0.03);border-radius:6px;margin-bottom:4px">
+              <span style="font-size:1.1rem">👤</span>
+              <div style="flex:1">
+                <div class="text-sm font-semi">${stud ? stud.name : 'Unknown'}</div>
+                <div style="font-size:0.75rem;color:var(--white-50)">Winner of: ${stud ? (stud.class_name || stud.class_id) : 'Unknown'}</div>
+              </div>
+            </div>`;
+          }).join('')
+        : '<div class="text-muted text-xs" style="padding:4px 10px">No nominees synced yet for this position</div>';
+
+      return `<div style="border:1px solid var(--white-10);border-radius:var(--radius-md);padding:12px;background:rgba(255,255,255,0.01)">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;font-weight:600">
+          <span style="font-size:1.2rem">${pos.icon}</span>
+          <span style="font-size:0.9rem">${pos.label}</span>
+        </div>
+        ${nomineeListHtml}
+      </div>`;
+    }).join('');
+  } catch (e) {
+    container.innerHTML = `<div class="text-red text-sm" style="padding:10px">Error loading nominees: ${e.message}</div>`;
+  }
+}
+window.loadCabinetNominees = loadCabinetNominees;
+
+async function loadCabinetVotersList() {
+  const tbody = document.getElementById('cabinet-voters-tbody');
+  tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted" style="padding:20px">Loading eligible voters...</td></tr>';
+  
+  try {
+    const [winners, votes] = await Promise.all([
+      API.Cabinet.getWinners(),
+      apiFetch('/api/votes/results?classId=class-cabinet').catch(() => []) // fetches cabinet votes
+    ]);
+    cabinetWinners = winners;
+    
+    // Calculate total voters and voted counts for stats
+    const totalVoters = winners.length;
+    
+    // Fetch stats of class-cabinet
+    let votedCount = 0;
+    try {
+      const cabStats = await apiFetch('/api/classes/class-cabinet/stats');
+      votedCount = cabStats.voted || 0;
+    } catch(err){}
+    
+    document.getElementById('cab-stat-voters').textContent = totalVoters;
+    document.getElementById('cab-stat-voted').textContent = votedCount;
+
+    if (winners.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted" style="padding:20px">No winners calculated. Complete the main elections first!</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = winners.map(w => {
+      // Show won position
+      const wonPos = w.position_id === 'pos-cr-boy' ? 'Class Rep (Boy)' :
+                     w.position_id === 'pos-cr-girl' ? 'Class Rep (Girl)' :
+                     w.position_id === 'pos-sports-boy' ? 'Sports Rep (Boy)' :
+                     w.position_id === 'pos-sports-girl' ? 'Sports Rep (Girl)' :
+                     w.position_id === 'pos-cultural-boy' ? 'Cultural Rep (Boy)' :
+                     w.position_id === 'pos-cultural-girl' ? 'Cultural Rep (Girl)' : w.position_id;
+                     
+      const statusBadge = `<span class="badge badge-gray">Eligible</span>`;
+      
+      return `<tr>
+        <td>
+          <strong>${w.name}</strong>
+          <div style="font-size:0.75rem;color:var(--white-50)">${w.class_name} · ${w.gender}</div>
+        </td>
+        <td><span class="badge badge-indigo">${wonPos}</span></td>
+        <td>${statusBadge}</td>
+        <td>
+          <button class="btn btn-gold btn-sm" onclick="activateCabinetVoter('${w.student_id}', '${w.name.replace(/'/g, "\\'")}')">🗳️ Activate Booth</button>
+        </td>
+      </tr>`;
+    }).join('');
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="4" class="text-center text-red" style="padding:20px">Error loading voters: ${e.message}</td></tr>`;
+  }
+}
+window.loadCabinetVotersList = loadCabinetVotersList;
+
+async function loadCabinetSessionStatus() {
+  const select = document.getElementById('cabinet-session-select');
+  const statusDiv = document.getElementById('cabinet-session-status');
+  const sessionId = select.value;
+  
+  statusDiv.textContent = 'Checking session status...';
+  try {
+    const session = await apiFetch(`/api/settings/sessions/${sessionId}`);
+    if (session && session.re_election_class_id === 'class-cabinet') {
+      statusDiv.innerHTML = `✅ Session ${sessionId} is currently in <strong>Cabinet Election Mode</strong>.`;
+      statusDiv.style.color = '#34d399';
+    } else {
+      statusDiv.textContent = `Session ${sessionId} is in Standard Voting Mode.`;
+      statusDiv.style.color = 'var(--white-50)';
+    }
+  } catch (e) {
+    statusDiv.textContent = 'Error checking status.';
+    statusDiv.style.color = '#f43f5e';
+  }
+}
+window.loadCabinetSessionStatus = loadCabinetSessionStatus;
+
+async function mapCabinetToSession(enable) {
+  const select = document.getElementById('cabinet-session-select');
+  const sessionId = select.value;
+  
+  try {
+    if (enable) {
+      await API.Settings.updateSession(sessionId, {
+        re_election_class_id: 'class-cabinet',
+        re_election_position_id: null
+      });
+      showToast(`Session ${sessionId} successfully mapped to Cabinet Election! 🔄`, 'success');
+    } else {
+      await API.Settings.updateSession(sessionId, {
+        re_election_class_id: null,
+        re_election_position_id: null
+      });
+      showToast(`Session ${sessionId} returned to Standard Mode. 🟢`, 'warning');
+    }
+    await loadCabinetSessionStatus();
+  } catch (e) {
+    showToast(e.message, 'error');
+  }
+}
+window.mapCabinetToSession = mapCabinetToSession;
+
+async function activateCabinetVoter(studentId, name) {
+  try {
+    const select = document.getElementById('cabinet-session-select');
+    const sessionId = select.value;
+    
+    // Check if session is mapped to cabinet mode first
+    const session = await apiFetch(`/api/settings/sessions/${sessionId}`);
+    if (!session || session.re_election_class_id !== 'class-cabinet') {
+      showToast(`Please enable Cabinet Mode for Session ${sessionId} first!`, 'error');
+      return;
+    }
+
+    await API.Settings.setActiveVoter({
+      studentId,
+      classId: 'class-cabinet',
+      name,
+      sessionId
+    });
+    showToast(`Booth Session ${sessionId} activated for Cabinet Voter "${name}"! 🗳️`, 'success');
+  } catch (e) {
+    showToast(e.message, 'error');
+  }
+}
+window.activateCabinetVoter = activateCabinetVoter;
 
 </script>
 </body>

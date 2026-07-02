@@ -366,11 +366,25 @@ const mysqlDb = {
       const p = getPool();
       const [[voter]] = await p.query('SELECT * FROM students WHERE id=?', [vote.voter_id]);
       if (!voter) throw new Error('Voter not found');
-      if (voter.has_voted) {
-        const err = new Error('You have already voted');
-        err.code = 'already_voted';
-        throw err;
+
+      if (vote.class_id === 'class-cabinet') {
+        const [[{ cabinetVoted }]] = await p.query(
+          "SELECT COUNT(*) AS cabinetVoted FROM votes WHERE voter_id=? AND class_id='class-cabinet'",
+          [vote.voter_id]
+        );
+        if (cabinetVoted > 0) {
+          const err = new Error('You have already voted in the Cabinet Election');
+          err.code = 'already_voted';
+          throw err;
+        }
+      } else {
+        if (voter.has_voted) {
+          const err = new Error('You have already voted');
+          err.code = 'already_voted';
+          throw err;
+        }
       }
+
       if (voter.is_absent) {
         const err = new Error('You are marked as absent');
         err.code = 'is_absent';
@@ -395,10 +409,12 @@ const mysqlDb = {
           );
         }
 
-        await conn.query(
-          'UPDATE students SET has_voted=1, voted_at=NOW() WHERE id=?',
-          [vote.voter_id]
-        );
+        if (vote.class_id !== 'class-cabinet') {
+          await conn.query(
+            'UPDATE students SET has_voted=1, voted_at=NOW() WHERE id=?',
+            [vote.voter_id]
+          );
+        }
 
         await conn.commit();
         return true;
@@ -422,17 +438,46 @@ const mysqlDb = {
       const results = [];
 
       for (const cls of classes) {
-        const [[stats]] = await p.query(`
-          SELECT
-            COUNT(CASE WHEN is_absent=0 THEN 1 END) AS total,
-            SUM(has_voted) AS voted,
-            SUM(is_absent) AS absent,
-            COUNT(CASE WHEN has_voted=0 AND is_absent=0 THEN 1 END) AS pending
-          FROM students WHERE class_id=?`, [cls.id]);
+        let stats;
+        if (cls.id === 'class-cabinet') {
+          const winners = await mysqlDb.cabinet.getWinners();
+          const totalVoters = winners.length;
+          const [[{ voted }]] = await p.query(
+            "SELECT COUNT(DISTINCT voter_id) AS voted FROM votes WHERE class_id='class-cabinet'"
+          );
+          stats = {
+            total: totalVoters,
+            voted: voted || 0,
+            absent: 0,
+            pending: Math.max(0, totalVoters - (voted || 0))
+          };
+        } else {
+          const [[row]] = await p.query(`
+            SELECT
+              COUNT(CASE WHEN is_absent=0 THEN 1 END) AS total,
+              SUM(has_voted) AS voted,
+              SUM(is_absent) AS absent,
+              COUNT(CASE WHEN has_voted=0 AND is_absent=0 THEN 1 END) AS pending
+            FROM students WHERE class_id=?`, [cls.id]);
+          stats = row ? {
+            total: row.total || 0,
+            voted: row.voted || 0,
+            absent: row.absent || 0,
+            pending: row.pending || 0
+          } : { total: 0, voted: 0, absent: 0, pending: 0 };
+        }
 
-        const [positions] = await p.query('SELECT * FROM positions ORDER BY sort_order');
+        // Only query cabinet positions for class-cabinet, and only standard positions for standard classes
+        let positionsQuery = 'SELECT * FROM positions';
+        if (cls.id === 'class-cabinet') {
+          positionsQuery += " WHERE id LIKE 'pos-cabinet-%'";
+        } else {
+          positionsQuery += " WHERE id NOT LIKE 'pos-cabinet-%'";
+        }
+        positionsQuery += ' ORDER BY sort_order';
+        const [positions] = await p.query(positionsQuery);
+        
         const posList = [];
-
         for (const pos of positions) {
           const [cands] = await p.query(`
             SELECT c.id, s.name, COUNT(v.id) AS votes
@@ -454,7 +499,7 @@ const mysqlDb = {
 
         results.push({
           class: cls,
-          stats: stats || { total: 0, voted: 0, absent: 0, pending: 0 },
+          stats: stats,
           positions: posList
         });
       }
@@ -683,6 +728,49 @@ const mysqlDb = {
       const p = getPool();
       await p.query("DELETE FROM staff WHERE id = ?", [id]);
       return true;
+    }
+  },
+
+  cabinet: {
+    getWinners: async () => {
+      const p = getPool();
+      const [classes] = await p.query("SELECT * FROM classes WHERE id != 'class-cabinet'");
+      const [positions] = await p.query("SELECT * FROM positions WHERE id NOT LIKE 'pos-cabinet-%'");
+      
+      const winners = [];
+      for (const cls of classes) {
+        for (const pos of positions) {
+          const [cands] = await p.query(`
+            SELECT c.id, c.student_id, COUNT(v.id) AS votes_count
+            FROM candidates c
+            LEFT JOIN votes v ON v.candidate_id = c.id
+            WHERE c.class_id = ? AND c.position_id = ?
+            GROUP BY c.id
+            ORDER BY votes_count DESC
+          `, [cls.id, pos.id]);
+          
+          if (cands.length > 0) {
+            const maxVotes = cands[0].votes_count;
+            const tiedCands = cands.filter(c => c.votes_count === maxVotes);
+            for (const winnerCand of tiedCands) {
+              const [[student]] = await p.query("SELECT name, gender FROM students WHERE id = ?", [winnerCand.student_id]);
+              if (student) {
+                winners.push({
+                  student_id: winnerCand.student_id,
+                  name: student.name,
+                  gender: student.gender,
+                  class_id: cls.id,
+                  class_name: cls.name,
+                  year: cls.year,
+                  position_id: pos.id,
+                  votes_count: maxVotes
+                });
+              }
+            }
+          }
+        }
+      }
+      return winners;
     }
   }
 };

@@ -441,11 +441,24 @@ const jsonDb = {
       const data = readData();
       const voter = data.students.find(s => s.id === vote.voter_id);
       if (!voter) throw new Error('Voter not found');
-      if (voter.has_voted) {
-        const err = new Error('You have already voted');
-        err.code = 'already_voted';
-        throw err;
+
+      if (vote.class_id === 'class-cabinet') {
+        const cabinetVoted = data.votes.some(
+          v => v.voter_id === vote.voter_id && v.class_id === 'class-cabinet'
+        );
+        if (cabinetVoted) {
+          const err = new Error('You have already voted in the Cabinet Election');
+          err.code = 'already_voted';
+          throw err;
+        }
+      } else {
+        if (voter.has_voted) {
+          const err = new Error('You have already voted');
+          err.code = 'already_voted';
+          throw err;
+        }
       }
+
       if (voter.is_absent) {
         const err = new Error('You are marked as absent');
         err.code = 'is_absent';
@@ -469,10 +482,14 @@ const jsonDb = {
         });
       });
 
-      // Mark voter as voted
-      const voterIdx = data.students.findIndex(s => s.id === vote.voter_id);
-      data.students[voterIdx].has_voted = true;
-      data.students[voterIdx].voted_at = new Date().toISOString();
+      // Mark voter as voted (only if standard vote, not cabinet)
+      if (vote.class_id !== 'class-cabinet') {
+        const voterIdx = data.students.findIndex(s => s.id === vote.voter_id);
+        if (voterIdx !== -1) {
+          data.students[voterIdx].has_voted = true;
+          data.students[voterIdx].voted_at = new Date().toISOString();
+        }
+      }
 
       writeData(data);
       return true;
@@ -486,17 +503,39 @@ const jsonDb = {
 
       const results = [];
 
-      targetClasses.forEach(cls => {
-        const classStudents = data.students.filter(s => s.class_id === cls.id);
+      for (const cls of targetClasses) {
+        let stats;
+        if (cls.id === 'class-cabinet') {
+          const winners = await jsonDb.cabinet.getWinners();
+          const totalVoters = winners.length;
+          const uniqueVotedIds = new Set(
+            data.votes.filter(v => v.class_id === 'class-cabinet').map(v => v.voter_id)
+          );
+          const voted = uniqueVotedIds.size;
+          stats = {
+            total: totalVoters,
+            voted: voted,
+            absent: 0,
+            pending: Math.max(0, totalVoters - voted)
+          };
+        } else {
+          const classStudents = data.students.filter(s => s.class_id === cls.id);
+          const total = classStudents.filter(s => !s.is_absent).length;
+          const voted = classStudents.filter(s => s.has_voted).length;
+          const absent = classStudents.filter(s => s.is_absent).length;
+          const pending = total - voted;
+          stats = { total, voted, absent, pending };
+        }
+
         const classVotes = data.votes.filter(v => v.class_id === cls.id);
-
-        const total = classStudents.filter(s => !s.is_absent).length;
-        const voted = classStudents.filter(s => s.has_voted).length;
-        const absent = classStudents.filter(s => s.is_absent).length;
-        const pending = total - voted;
-
         const classCandidates = data.candidates.filter(c => c.class_id === cls.id);
-        const classPositions = data.positions;
+        
+        let classPositions = data.positions;
+        if (cls.id === 'class-cabinet') {
+          classPositions = data.positions.filter(p => p.id.startsWith('pos-cabinet-'));
+        } else {
+          classPositions = data.positions.filter(p => !p.id.startsWith('pos-cabinet-'));
+        }
 
         const posList = classPositions.map(pos => {
           const cands = classCandidates.filter(c => c.position_id === pos.id).map(cand => {
@@ -523,10 +562,10 @@ const jsonDb = {
 
         results.push({
           class: cls,
-          stats: { total, voted, absent, pending },
+          stats: stats,
           positions: posList
         });
-      });
+      }
 
       return results;
     },
@@ -740,6 +779,48 @@ const jsonDb = {
       data.staff = (data.staff || []).filter(x => x.id !== id);
       writeData(data);
       return true;
+    }
+  },
+
+  cabinet: {
+    getWinners: async () => {
+      const data = readData();
+      const classes = data.classes.filter(c => c.id !== 'class-cabinet');
+      const positions = data.positions.filter(p => !p.id.startsWith('pos-cabinet-'));
+      
+      const winners = [];
+      classes.forEach(cls => {
+        positions.forEach(pos => {
+          const classCands = data.candidates.filter(c => c.class_id === cls.id && c.position_id === pos.id);
+          const candVotes = classCands.map(cand => {
+            const votesCount = data.votes.filter(v => v.candidate_id === cand.id).length;
+            return { cand, votesCount };
+          });
+          
+          if (candVotes.length > 0) {
+            candVotes.sort((a, b) => b.votesCount - a.votesCount);
+            const maxVotes = candVotes[0].votesCount;
+            const tied = candVotes.filter(cv => cv.votesCount === maxVotes);
+            
+            tied.forEach(cv => {
+              const student = data.students.find(s => s.id === cv.cand.student_id);
+              if (student) {
+                winners.push({
+                  student_id: cv.cand.student_id,
+                  name: student.name,
+                  gender: student.gender,
+                  class_id: cls.id,
+                  class_name: cls.name,
+                  year: cls.year,
+                  position_id: pos.id,
+                  votes_count: maxVotes
+                });
+              }
+            });
+          }
+        });
+      });
+      return winners;
     }
   }
 };
