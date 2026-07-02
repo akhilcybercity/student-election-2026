@@ -792,7 +792,7 @@ const mysqlDb = {
       const p = getPool();
       const [rows] = await p.query(`
         SELECT cv.student_id, s.name, s.roll_no, s.gender, c.name AS class_name, c.year,
-               CASE WHEN v.voter_id IS NOT NULL THEN 1 ELSE 0 END AS cabinet_has_voted,
+               CASE WHEN COUNT(v.voter_id) > 0 THEN 1 ELSE 0 END AS cabinet_has_voted,
                MIN(v.voted_at) AS cabinet_voted_at
         FROM cabinet_voters cv
         JOIN students s ON cv.student_id = s.id

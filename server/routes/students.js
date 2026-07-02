@@ -66,22 +66,24 @@ router.post('/', requireUser, async (req, res) => {
   }
 });
 
-// POST /api/students/:id/photo — upload student photo
-router.post('/:id/photo', requireAdmin, photoUpload.single('photo'), async (req, res) => {
+// POST /api/students/:id/photo — upload student photo (stored as base64 in DB for Railway persistence)
+router.post('/:id/photo', requireAdmin, multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } }).single('photo'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-    const ext = path.extname(req.file.originalname);
-    const photoPath = `/uploads/students/${req.params.id}${ext}`;
+    // Convert to base64 data URL — survives Railway redeploys unlike disk storage
+    const mime = req.file.mimetype || 'image/jpeg';
+    const b64  = req.file.buffer.toString('base64');
+    const dataUrl = `data:${mime};base64,${b64}`;
     const isMySQL = !!process.env.DB_HOST;
     if (isMySQL) {
       const p = db.getPool();
-      await p.query('UPDATE students SET photo = ? WHERE id = ?', [photoPath, req.params.id]);
+      await p.query('UPDATE students SET photo = ? WHERE id = ?', [dataUrl, req.params.id]);
     } else {
       const data = require('../db/jsonDb').readData();
       const idx = data.students.findIndex(s => s.id === req.params.id);
-      if (idx !== -1) { data.students[idx].photo = photoPath; require('../db/jsonDb').writeData(data); }
+      if (idx !== -1) { data.students[idx].photo = dataUrl; require('../db/jsonDb').writeData(data); }
     }
-    res.json({ success: true, photo: photoPath });
+    res.json({ success: true, photo: dataUrl });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

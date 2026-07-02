@@ -50,12 +50,10 @@ router.post('/', requireAdmin, async (req, res) => {
   }
 });
 
-// POST /api/candidates/:id/photo — upload candidate photo
-router.post('/:id/photo', requireAdmin, upload.single('photo'), async (req, res) => {
+// POST /api/candidates/:id/photo — upload candidate photo (stored as base64 in DB for Railway persistence)
+router.post('/:id/photo', requireAdmin, multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } }).single('photo'), async (req, res) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
-    }
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
     const isMySQL = !!process.env.DB_HOST;
     let studentId = null;
@@ -70,35 +68,23 @@ router.post('/:id/photo', requireAdmin, upload.single('photo'), async (req, res)
       if (cand) studentId = cand.student_id;
     }
 
-    if (!studentId) {
-      return res.status(404).json({ error: 'Candidate not found' });
-    }
+    if (!studentId) return res.status(404).json({ error: 'Candidate not found' });
 
-    const ext = path.extname(req.file.originalname);
-    const photoPath = `/uploads/students/${studentId}${ext}`;
+    // Store as base64 data URL in the students table (survives Railway redeploys)
+    const mime    = req.file.mimetype || 'image/jpeg';
+    const b64     = req.file.buffer.toString('base64');
+    const dataUrl = `data:${mime};base64,${b64}`;
 
-    const studentUploadDir = path.join(__dirname, '..', '..', 'public', 'uploads', 'students');
-    if (!fs.existsSync(studentUploadDir)) {
-      fs.mkdirSync(studentUploadDir, { recursive: true });
-    }
-
-    const destPath = path.join(studentUploadDir, `${studentId}${ext}`);
-    fs.renameSync(req.file.path, destPath);
-
-    // Update photo on student record
     if (isMySQL) {
       const p = db.getPool();
-      await p.query('UPDATE students SET photo = ? WHERE id = ?', [photoPath, studentId]);
+      await p.query('UPDATE students SET photo = ? WHERE id = ?', [dataUrl, studentId]);
     } else {
       const data = require('../db/jsonDb').readData();
       const idx = data.students.findIndex(s => s.id === studentId);
-      if (idx !== -1) {
-        data.students[idx].photo = photoPath;
-        require('../db/jsonDb').writeData(data);
-      }
+      if (idx !== -1) { data.students[idx].photo = dataUrl; require('../db/jsonDb').writeData(data); }
     }
 
-    res.json({ success: true, photo: photoPath });
+    res.json({ success: true, photo: dataUrl });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
