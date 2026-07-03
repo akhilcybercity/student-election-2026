@@ -256,15 +256,15 @@ async function buildBallot() {
         candHtml = `<div class="candidates-list">` +
           posCandidates.map(c => {
             const avatarHtml = c.photo
-              ? `<img src="${c.photo}?t=${new Date().getTime()}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.15);margin-right:12px" />`
-              : `<div style="width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;font-size:1.2rem;margin-right:12px;opacity:0.7">👤</div>`;
+              ? `<img src="${c.photo}?t=${new Date().getTime()}" style="width:80px;height:80px;border-radius:8px;object-fit:cover;border:2px solid rgba(255,255,255,0.15);margin-right:16px;flex-shrink:0" />`
+              : `<div style="width:80px;height:80px;border-radius:8px;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;font-size:2.2rem;margin-right:16px;opacity:0.7;flex-shrink:0">👤</div>`;
             return `<label class="candidate-option" id="opt-${pos.id}-${c.id}" onclick="selectCandidate('${pos.id}','${c.id}')" style="display:flex;align-items:center;padding:12px 18px">
               <input type="radio" name="post-${pos.id}" value="${c.id}" />
               <div class="candidate-radio"><div class="candidate-radio-dot"></div></div>
               ${avatarHtml}
               <div class="candidate-info">
-                <div class="candidate-name-text">${c.student_name}</div>
-                ${c.roll_no?`<div class="candidate-roll-text">${c.roll_no}</div>`:''}
+                <div class="candidate-name-text" style="font-size:1.1rem">${c.student_name}</div>
+                ${c.roll_no?`<div class="candidate-roll-text" style="font-size:0.85rem">${c.roll_no}</div>`:''}
               </div>
               <span class="candidate-check">✓</span>
             </label>`;
@@ -272,8 +272,8 @@ async function buildBallot() {
           `<label class="nota-option" id="nota-${pos.id}" onclick="selectCandidate('${pos.id}','NOTA')" style="display:flex;align-items:center;padding:12px 18px">
             <input type="radio" name="post-${pos.id}" value="NOTA" />
             <div class="candidate-radio"><div class="candidate-radio-dot"></div></div>
-            <div style="width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:center;font-size:1.2rem;margin-right:12px;opacity:0.5">🚫</div>
-            <div class="candidate-info"><div class="candidate-name-text text-muted">None of the Above (NOTA)</div></div>
+            <div style="width:80px;height:80px;border-radius:8px;background:rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:center;font-size:2.2rem;margin-right:16px;opacity:0.5;flex-shrink:0">🚫</div>
+            <div class="candidate-info"><div class="candidate-name-text text-muted" style="font-size:1.1rem">None of the Above (NOTA)</div></div>
           </label></div>`;
       }
       section.innerHTML = `
